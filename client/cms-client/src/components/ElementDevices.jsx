@@ -1,8 +1,9 @@
-import { Lightbulb, Power } from 'lucide-react'
+import React, { useState } from "react";
+import { Lightbulb, SunDim } from 'lucide-react'
 
 const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
-    console.log(device_list)
-
+    // console.log(device_list)
+    const [sliderValues, setSliderValues]=useState({});
 
     const handleAction=async (address, value) => {
         sendWebSocketMessage({
@@ -15,6 +16,12 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
             }
         })
     }
+    const handleChangeSlider=(deviceId, e) => {
+        setSliderValues(prevValues => ({
+            ...prevValues,
+            [deviceId]: e.target.value,
+        }));
+    };
 
     return (
         <div className="grid grid-cols-3 items-start justify-center gap-4">
@@ -54,8 +61,47 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                 )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <div className="w-full h-[120px] border"></div>
-                <div className="w-full h-[120px] border"></div>
+                {device_list.map((item) => {
+                    if (item.type_id==3) {
+                        return (
+                            <div key={item.device_id} className="flex flex-col items-center gap-2 w-full h-[100px] bg-gray-200 rounded-xl shadow-xl py-4 px-2">
+                                {item.attributes.map((attr) => {
+                                    if (attr.attr_id==1) {
+                                        return (
+                                            <div key={attr.attr_id} className='w-full flex items-center gap-2'>
+                                                <SunDim className={attr.value<=0? 'text-black':'text-yellow-500'} size={32} />
+                                                <h3 className='font-semibold'>{item.device_name}</h3>
+                                            </div>
+                                        )
+                                    }
+                                })}
+                                <div className='w-full flex-1'>
+                                    {item.attributes.map((attr) => {
+                                        if (attr.attr_id==1) {
+                                            return (
+                                                <div key={attr.attr_id} className="flex flex-col items-center justify-center">
+                                                    <label htmlFor="slider" className="font-semibold">
+                                                        {sliderValues[item.device_id]||attr.value}%
+                                                    </label>
+                                                    <input
+                                                        id="slider"
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        value={sliderValues[item.device_id]||attr.value}
+                                                        onChange={(e) => handleChangeSlider(item.device_id, e)}
+                                                        className="w-full h-4 bg-gray-200 rounded-full cursor-pointer"
+                                                    />
+                                                </div>
+                                            )
+                                        }
+                                    })}
+                                </div>
+                            </div>
+                        )
+                    }
+                }
+                )}
             </div>
             <div className="grid grid-cols-1 gap-4">
                 <div className="w-full h-[120px] border"></div>
