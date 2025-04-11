@@ -90,6 +90,11 @@ const AdminDashboard=() => {
                     return {
                       ...device,
                       attributes: device.attributes.map((attr) => {
+                        if (matchingData.data[5]==0&&matchingData.data[6]==0) {
+                          matchingData.data[5]=0
+                        } else if (matchingData.data[6]==1) {
+                          matchingData.data[5]=2
+                        }
                         const serverValue=matchingData.data[attr.holding_address];
                         if (serverValue!==undefined) {
                           return {
@@ -125,12 +130,37 @@ const AdminDashboard=() => {
                   return {
                     ...device,
                     attributes: device.attributes.map((attr) => {
-                      const newItem=param.data.find((p) => p.address==attr.holding_address);
-                      if (newItem) {
+                      // 5MUR, 6DND
+                      if (attr.holding_address==5) {
+                        const value5=param.data.find((p) => p.address===5)?.value
+                          ??device.attributes.find((a) => a.holding_address===5)?.value
+                          ??0;
+
+                        const value6=param.data.find((p) => p.address===6)?.value
+                          ??device.attributes.find((a) => a.holding_address===6)?.value
+                          ??0;
+
+                        let finalValue=0;
+
+                        if (value6===1) {
+                          finalValue=2;
+                        } else if (value5===1&&value6===0) {
+                          finalValue=1;
+                        }
+
+
                         return {
                           ...attr,
-                          value: newItem.value,
+                          value: finalValue,
                         };
+                      } else {
+                        const newItem=param.data.find((p) => p.address==attr.holding_address);
+                        if (newItem) {
+                          return {
+                            ...attr,
+                            value: newItem.value,
+                          };
+                        }
                       }
                       return attr;
                     }),

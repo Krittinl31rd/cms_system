@@ -70,7 +70,7 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                         }
 
                                     case 2:
-                                        if (attr.value==0) {
+                                        if (attr.value==2) {
                                             return (
                                                 <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-red-200 text-red-700">
                                                     <span className="font-bold">Do Not Disturb</span>
