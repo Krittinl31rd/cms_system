@@ -1,13 +1,15 @@
+import useCmsStore from "../store/cmsstore";
 
 
 const LabelStatus=({ device_list }) => {
-
+    const { member }=useCmsStore((state) => state);
 
     return (
         <div className="grid grid-cols-4 gap-2 text-sm">
             {device_list.map((item) =>
                 item.type_id==0
                     ? item.attributes.map((attr) => {
+                        const DND=item.attributes.find(attr => attr.attr_id==11);
                         switch (attr.attr_id) {
                             case 0:
                                 if (attr.value==1) {
@@ -40,13 +42,13 @@ const LabelStatus=({ device_list }) => {
                                 }
 
                             case 2:
-                                if (attr.value==2) {
+                                if (attr.value==0&&DND.value==1) {
                                     return (
                                         <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-red-200 text-red-700">
                                             <span className="font-bold">Do Not Disturb</span>
                                         </span>
                                     );
-                                } if (attr.value==1) {
+                                } if (attr.value==1&&DND.value==0) {
                                     return (
                                         <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-sky-200 text-sky-700">
                                             <span className="font-bold">Make Up Room</span>
@@ -55,7 +57,7 @@ const LabelStatus=({ device_list }) => {
                                 } else {
                                     return (
                                         <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-gray-200 text-gray-700">
-                                            <span className="font-bold">N/A</span>
+                                            <span className="font-bold">DND/MUR</span>
                                         </span>
                                     );
                                 }

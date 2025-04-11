@@ -2,8 +2,8 @@ import { sendStatusRoom } from "../api/Devices"
 import useCmsStore from "../store/cmsstore";
 
 const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
-    const { token }=useCmsStore((state) => state);
-    
+    const { token, member }=useCmsStore((state) => state);
+
     const handleAction=async (device_id, attr_id, address, value) => {
         sendWebSocketMessage({
             cmd: 'modbus_write',
@@ -22,14 +22,14 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
 
     const handleSendStatus=async (device_id, attr_id, value) => {
         try {
-            const res=await sendStatusRoom(token,
+            await sendStatusRoom(token,
                 {
                     room_id: item.room_id,
                     device_id,
                     attr_id,
                     value
                 })
-            console.log(res);
+            // console.log(res);
         } catch (err) {
             console.log(err);
         }
@@ -50,9 +50,10 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                         No Device
                     </div>
                 ):(
-                    item.device_list.flatMap((item) =>
+                    item.device_list.map((item) =>
                         item.type_id==0
                             ? item.attributes.map((attr) => {
+                                const DND=item.attributes.find(attr => attr.attr_id==11);
                                 switch (attr.attr_id) {
                                     case 0:
                                         if (attr.value==1) {
@@ -69,14 +70,14 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                             );
                                         }
 
-                                    case 2:
-                                        if (attr.value==2) {
+                                    case 2: //MUR
+                                        if (attr.value==0&&DND.value==1) {
                                             return (
                                                 <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-red-200 text-red-700">
                                                     <span className="font-bold">Do Not Disturb</span>
                                                 </span>
                                             );
-                                        } if (attr.value==1) {
+                                        } if (attr.value==1&&DND.value==0) {
                                             return (
                                                 <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-sky-200 text-sky-700">
                                                     <span className="font-bold">Make Up Room</span>
@@ -85,7 +86,7 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                         } else {
                                             return (
                                                 <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-gray-200 text-gray-700">
-                                                    <span className="font-bold">N/A</span>
+                                                    <span className="font-bold">DND/MUR</span>
                                                 </span>
                                             );
                                         }
@@ -205,77 +206,80 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                             :[]
                     )
                 )}
-
-
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-                {item.device_list.length===0? (
-                    <>
-                        <button
-                            className="flex-1 cursor-pointer p-2 bg-gray-200 text-gray-700 font-semibold rounded-xl"
-                        >
-                            Control
-                        </button>
-                        <button
-                            className="flex-1 cursor-pointer p-2 bg-red-200 text-red-700 font-semibold rounded-xl"
-                        >
-                            Check-Out
-                        </button>
-                    </>
-                ):(
-                    item.device_list.map((item) =>
-                        item.type_id===0
-                            ? item.attributes.map((attr) => {
-                                switch (attr.attr_id) {
-                                    case 1:
-                                        return (
-                                            <div key={attr.attr_id} className="col-span-2 flex items-center gap-2">
-                                                {attr.value===1? (
-                                                    <button
-                                                        onClick={() =>
-                                                            handleAction(
-                                                                item.device_id,
-                                                                attr.attr_id,
-                                                                attr.holding_address,
-                                                                attr.value===1? 0:1
-                                                            )
-                                                        }
-                                                        className="flex-1 cursor-pointer p-2 bg-green-200 text-green-700 font-semibold rounded-xl"
-                                                    >
-                                                        Check-In
-                                                    </button>
-                                                ):(
-                                                    <>
-                                                        <button
-                                                            onClick={onClick}
-                                                            className="flex-1 cursor-pointer p-2 bg-gray-200 text-gray-700 font-semibold rounded-xl"
-                                                        >
-                                                            Control
-                                                        </button>
+            {member?.role=='admin'? (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    {item.device_list.length===0? (
+                        <>
+                            <button
+                                className="flex-1 cursor-pointer p-2 bg-gray-200 text-gray-700 font-semibold rounded-xl"
+                            >
+                                Control
+                            </button>
+                            <button
+                                className="flex-1 cursor-pointer p-2 bg-red-200 text-red-700 font-semibold rounded-xl"
+                            >
+                                Check-Out
+                            </button>
+                        </>
+                    ):(
+                        item.device_list.map((item) =>
+                            item.type_id===0
+                                ? item.attributes.map((attr) => {
+                                    switch (attr.attr_id) {
+                                        case 1:
+                                            return (
+                                                <div key={attr.attr_id} className="col-span-2 flex items-center gap-2">
+                                                    {attr.value===1? (
                                                         <button
                                                             onClick={() =>
                                                                 handleAction(
                                                                     item.device_id,
                                                                     attr.attr_id,
                                                                     attr.holding_address,
-                                                                    attr.value===0? 1:0
+                                                                    attr.value===1? 0:1
                                                                 )
                                                             }
-                                                            className="flex-1 cursor-pointer p-2 bg-red-200 text-red-700 font-semibold rounded-xl"
+                                                            className="flex-1 cursor-pointer p-2 bg-green-200 text-green-700 font-semibold rounded-xl"
                                                         >
-                                                            Check-Out
+                                                            Check-In
                                                         </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        );
-                                    default:
-                                        return null;
-                                }
-                            }):[]
-                    )
-                )}
-            </div>
+                                                    ):(
+                                                        <>
+                                                            <button
+                                                                onClick={onClick}
+                                                                className="flex-1 cursor-pointer p-2 bg-gray-200 text-gray-700 font-semibold rounded-xl"
+                                                            >
+                                                                Control
+                                                            </button>
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleAction(
+                                                                        item.device_id,
+                                                                        attr.attr_id,
+                                                                        attr.holding_address,
+                                                                        attr.value==0? 1:0
+                                                                    )
+                                                                }
+                                                                className="flex-1 cursor-pointer p-2 bg-red-200 text-red-700 font-semibold rounded-xl"
+                                                            >
+                                                                Check-Out
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        default:
+                                            return null;
+                                    }
+                                }):[]
+                        )
+                    )}
+                </div>
+            ):(
+                null
+            )}
+
 
         </div>
     )

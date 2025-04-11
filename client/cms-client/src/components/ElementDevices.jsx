@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Lightbulb, SunDim, AirVent, CircleGauge, Settings } from 'lucide-react'
+import { LampCeiling, SunDim, AirVent, CircleGauge, Settings } from 'lucide-react'
+import useCmsStore from "../store/cmsstore";
 
 const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
     // console.log(device_list)
+    const { member }=useCmsStore((state) => state);
     const [sliderValues, setSliderValues]=useState({});
 
     const handleAction=async (address, value) => {
@@ -26,17 +28,18 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
 
 
     return (
+
         <div className="grid grid-cols-3 items-start justify-center gap-4">
             <div className="grid grid-cols-2 gap-4">
                 {device_list.map((item) => {
                     if (item.type_id==4) {
                         return (
                             <div key={item.device_id} className="flex flex-col items-center  gap-2 w-full h-[130px] bg-gray-100 rounded-xl shadow-xl py-2 px-2">
-                                {item.attributes.map((attr) => {
+                                { item.attributes.map((attr) => {
                                     if (attr.attr_id==1) {
                                         return (
                                             <div key={attr.attr_id} className='w-full flex items-center'>
-                                                <Lightbulb className={attr.value==0? 'text-black':'text-yellow-500'} size={32} />
+                                                <LampCeiling className={attr.value==0? 'text-gray-500':'text-yellow-500'} size={32} />
                                                 <div className='h-full flex-1 flex items-start justify-end gap-2 font-semibold text-xs'>
                                                     {attr.value==0? (<span>OFF</span>):(<span>ON</span>)}
                                                     <button
@@ -71,7 +74,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                     if (attr.attr_id==1) {
                                         return (
                                             <div key={attr.attr_id} className='w-full flex items-center gap-2'>
-                                                <SunDim className={attr.value<=0? 'text-black':'text-yellow-500'} size={32} />
+                                                <SunDim className={attr.value<=0? 'text-gray-500':'text-yellow-500'} size={32} />
                                                 <h3 className='font-semibold'>{item.device_name}</h3>
                                             </div>
                                         )
@@ -132,7 +135,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                         return (
                             <div key={item.device_id} className="flex flex-col items-center  gap-2 w-full h-[130px] bg-gray-100 rounded-xl shadow-xl py-2 px-2">
                                 <div className='w-full flex items-center gap-2'>
-                                    <AirVent className={FanSpeed.value==0? 'text-black':'text-sky-500'} size={32} />
+                                    <AirVent className={FanSpeed.value==0? 'text-gray-500':'text-sky-500'} size={32} />
                                     <h3 className='font-semibold'>{item.device_name}</h3>
                                     <div className="flex-1 flex items-center justify-end">
                                         <span className="font-semibold">Room: <span className="font-normal">{RoomTemp.value}</span>°C </span></div>
@@ -283,6 +286,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                                 <input
                                                     id={attr.attr_id}
                                                     type="text"
+                                                    // value={attr.value}
                                                     defaultValue={attr.value}
                                                     className="w-full border border-gray-300 rounded-sm p-1 text-sm" />
                                             </div>
