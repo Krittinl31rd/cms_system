@@ -6,52 +6,156 @@ const { ConnectModbus, PoolModbusData, ReadAllRegisters }=require('./utilities/m
 const wss=new WebSocket.Server({ port: process.env.WS_PORT });
 const wsClients=[];
 const MODBUS_TCP_IPS=[
-    // { ip: '58.136.161.55', port: 502 },
+    // { ip: '58.136.212.5', port: 502 },
     { ip: '192.168.1.66', port: 502 },
 ];
+// 58.136.212.55
 const MODBUS_SLAVE_ID=1;
 const MODBUS_TOTAL_REGISTERS=90;
 const MODBUS_CHUNK_SIZE=125;
 
-let pollIntervals=[];
+const { addPollInterval, removePollInterval, getPollIntervals }=require('./utilities/pollInterval.js');
+// let pollIntervals=[];
+
+// async function startPolling() {
+//     try {
+//         // Connect to multiple Modbus servers
+//         for (let { ip, port } of MODBUS_TCP_IPS) {
+//             const client=new ModbusRTU();
+//             await ConnectModbus(client, ip, port);
+//             // console.log(`Connected to Modbus server at ${ip}:${port}`);
+
+//             // Start polling for each server
+//             const pollInterval=setInterval(() => pollModbusData(client, ip), 1000);
+//             pollIntervals.push({ ip, pollInterval, client });
+//         }
+//     } catch (error) {
+//         console.error('Failed to connect to Modbus server:', error);
+//         setTimeout(startPolling, 5000);
+//     }
+// }
+
+// function stopPolling() {
+//     pollIntervals.forEach(({ pollInterval, client }) => {
+//         clearInterval(pollInterval);
+//         console.log(`Polling stopped for server ${client._host}`);
+//     });
+//     pollIntervals=[];
+// }
+
+// async function pollModbusData(client, ip) {
+//     try {
+//         if (!client.isOpen) {
+//             console.log(`Modbus connection to ${ip} is not open, skipping polling...`);
+//             return;
+//         }
+//         await PoolModbusData(client, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, wsClients, ip);
+//     } catch (error) {
+//         console.error(`Error during polling for ${ip}:`, error);
+//         stopPolling();
+//     }
+// }
+
+// startPolling();
+
+function broadcastStatusUpdate(ip, status) {
+    wsClients.forEach(client => {
+        if (client.isLogin==true) {
+            client.socket.send(JSON.stringify({
+                cmd: 'isOnline',
+                param: { ip_address: ip, isOnline: status }
+            }));
+        }
+    });
+}
 
 async function startPolling() {
     try {
-        // Connect to multiple Modbus servers
         for (let { ip, port } of MODBUS_TCP_IPS) {
-            const client=new ModbusRTU();
-            await ConnectModbus(client, ip, port);
-            // console.log(`Connected to Modbus server at ${ip}:${port}`);
-
-            // Start polling for each server
-            const pollInterval=setInterval(() => pollModbusData(client, ip), 1000);
-            pollIntervals.push({ ip, pollInterval, client });
+            await setupPollingClient(ip, port);
         }
     } catch (error) {
-        console.error('Failed to connect to Modbus server:', error);
-        setTimeout(startPolling, 5000);
+        console.error('Initial Modbus connection failed:', error);
+        setTimeout(startPolling, 5000); // Retry after 5 seconds
+    }
+}
+async function setupPollingClient(ip, port) {
+    const client=new ModbusRTU();
+    try {
+        await ConnectModbus(client, ip, port);
+
+        broadcastStatusUpdate(ip, true);
+
+        const pollInterval=setInterval(() => pollModbusData(client, ip, port), 1000);
+        // pollIntervals.push({ ip, port, pollInterval, client });
+        addPollInterval({ ip, port, pollInterval, client })
+        //// Successful connection, start polling
+        // const pollInterval=setInterval(() => pollModbusData(client, ip, port), 1000);
+        // pollIntervals.push({ ip, port, pollInterval, client});
+
+        // // Initially mark as online
+        // const entry={ ip, port, pollInterval: null, client, isOnline: true };
+        // pollIntervals.push(entry);
+
+        // // Start polling
+        // const pollInterval=setInterval(() => pollModbusData(entry), 1000);
+        // entry.pollInterval=pollInterval;
+    } catch (err) {
+        console.error(`Failed to connect to ${ip}:${port}, retrying in 5 seconds...`);
+        setTimeout(() => setupPollingClient(ip, port), 5000);
     }
 }
 
-function stopPolling() {
-    pollIntervals.forEach(({ pollInterval, client }) => {
-        clearInterval(pollInterval);
-        console.log(`Polling stopped for server ${client._host}`);
-    });
-    pollIntervals=[];
-}
-
-async function pollModbusData(client, ip) {
+async function pollModbusData(client, ip, port) {
     try {
         if (!client.isOpen) {
-            console.log(`Modbus connection to ${ip} is not open, skipping polling...`);
+            console.warn(`Modbus connection to ${ip} is closed. Reconnecting...`);
+            broadcastStatusUpdate(ip, false);
+            await reconnectModbusClient(ip, port);
             return;
         }
+
         await PoolModbusData(client, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, wsClients, ip);
     } catch (error) {
-        console.error(`Error during polling for ${ip}:`, error);
-        stopPolling();
+        console.error(`Polling error on ${ip}:`, error);
+        broadcastStatusUpdate(ip, false);
+        await reconnectModbusClient(ip, port);
     }
+}
+
+
+
+// async function pollModbusData(client, ip, port) {
+//     try {
+//         if (!client.isOpen) {
+//             console.warn(`Modbus connection to ${ip} is closed. Reconnecting...`);
+//             await reconnectModbusClient(ip, port);
+//             return;
+//         }
+//         await PoolModbusData(client, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, wsClients, ip);
+//     } catch (error) {
+//         console.error(`Polling error on ${ip}:`, error);
+//         await reconnectModbusClient(ip, port); // Attempt to reconnect on polling error
+//     }
+// }
+
+async function reconnectModbusClient(ip, port) {
+    const entry=getPollIntervals().find(item => item.ip===ip&&item.port===port);
+    if (entry) {
+        // Clear the existing polling interval
+        clearInterval(entry.pollInterval);
+        try {
+            if (entry.client.isOpen) {
+                await entry.client.close(); // Close the Modbus client connection
+            }
+        } catch (e) {
+            console.warn(`Failed to close client for ${ip}:${port}:`, e.message);
+        }
+        // pollIntervals=pollIntervals.filter(item => item.ip!==ip||item.port!==port);
+        removePollInterval(ip, port)
+    }
+    console.log(`Reconnecting to ${ip}:${port} in 5 seconds...`);
+    setTimeout(() => setupPollingClient(ip, port), 5000);
 }
 
 startPolling();
@@ -70,6 +174,7 @@ wss.on('connection', (ws) => {
     wsClients.push(infoClient);
 
     ws.on('message', async (message) => {
+        // console.log(JSON.parse(message));
         try {
             const { cmd, param }=JSON.parse(message);
             // infoClient.lastTimestamp=Date.now();
@@ -97,10 +202,18 @@ wss.on('connection', (ws) => {
 
                     setTimeout(async () => {
                         try {
+
+                            getPollIntervals().forEach(({ ip }) => {
+                                ws.send(JSON.stringify({
+                                    cmd: 'isOnline',
+                                    param: { ip_address: ip, isOnline: true }
+                                }));
+                            });
+
                             console.log(`Client ${infoClient.id}  getalldata`);
                             infoClient.updated=true
                             const allResults=[];
-                            for (const server of pollIntervals) {
+                            for (const server of getPollIntervals()) {
                                 const modbusClient=server.client;
                                 if (modbusClient&&modbusClient.isOpen) {
 
@@ -131,13 +244,15 @@ wss.on('connection', (ws) => {
                         }
                     }, 500)
 
-
                 } catch (err) {
                     return ws.send(JSON.stringify({
                         cmd: 'login',
                         param: { status: 'error', message: 'Invalid token' }
                     }));
                 }
+
+
+
             }
 
             if (infoClient.isLogin==false) {
@@ -151,7 +266,7 @@ wss.on('connection', (ws) => {
                 try {
                     const { ip }=param;
                     infoClient.ip=ip;
-                    const modbusClient=pollIntervals.find(server => server.ip===infoClient.ip)?.client;
+                    const modbusClient=getPollIntervals().find(server => server.ip===infoClient.ip)?.client;
                     if (modbusClient) {
                         const allData=await ReadAllRegisters(modbusClient, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, infoClient.ip);
 
@@ -178,14 +293,16 @@ wss.on('connection', (ws) => {
             if (cmd=='modbus_write') {
                 try {
                     const { address, value, slaveId, ip }=param;
-                    const modbusClient=pollIntervals.find(server => server.ip==ip)?.client;
+                    const modbusClient=getPollIntervals().find(server => server.ip==ip)?.client;
                     if (modbusClient) {
                         modbusClient.setID(slaveId);
                         await modbusClient.writeRegister(address, value);
+                        console.log({ address, value, slaveId, ip })
                         ws.send(JSON.stringify({
                             cmd: 'modbus_write',
                             param: { status: 'success', message: 'Write successful' }
                         }));
+                        // console.log({ status: 'success', param })
                     } else {
                         ws.send(JSON.stringify({
                             cmd: 'modbus_write',
@@ -241,7 +358,7 @@ async function sendAllData(ws) {
     try {
         const allResults=[];
 
-        for (const server of pollIntervals) {
+        for (const server of getPollIntervals()) {
             const modbusClient=server.client;
             if (modbusClient&&modbusClient.isOpen) {
                 const allData=await ReadAllRegisters(modbusClient, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE);
@@ -265,6 +382,7 @@ async function sendAllData(ws) {
             cmd: 'getalldata',
             param: { status: 'error', message: error.message }
         }));
+
     }
 }
 

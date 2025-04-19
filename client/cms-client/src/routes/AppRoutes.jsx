@@ -8,6 +8,7 @@ import ProtectRouteEngineer from '../routes/ProtectRouteEngineer'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import HousekeeperDashboard from '../pages/housekeeper/HousekeeperDashboard'
 import EngineerDashboard from '../pages/engineer/EngineerDashboard'
+import AdminLogs from '../pages/admin/AdminLogs'
 
 const router=createBrowserRouter([
     {
@@ -26,6 +27,7 @@ const router=createBrowserRouter([
         element: <ProtectRouteAdmin element={<Layout />} />,
         children: [
             { index: true, element: <AdminDashboard /> },
+            { path: "logs", element: <AdminLogs/> },
         ]
     },
     {

@@ -1,11 +1,74 @@
 import React, { useState } from "react";
 import { LampCeiling, SunDim, AirVent, CircleGauge, Settings } from 'lucide-react'
-import useCmsStore from "../store/cmsstore";
+import { toast } from "react-toastify";
 
 const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
     // console.log(device_list)
-    const { member }=useCmsStore((state) => state);
     const [sliderValues, setSliderValues]=useState({});
+    const [tabs, setTabs]=useState({});
+    const [formData, setFormData]=useState({});
+    const [btnDisabledMap, setBtnDisabledMap]=useState({});
+    ;
+    const delay=(ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const handleSave=async (deviceId) => {
+        setBtnDisabledMap(prev => ({ ...prev, [deviceId]: true }));
+
+        const device=device_list.find(d => d.device_id==deviceId);
+        if (!device) {
+            setBtnDisabledMap(prev => ({ ...prev, [deviceId]: false }));
+            return;
+        }
+
+        const activeTab=tabs[deviceId]||'tab1';
+        const updatedFields=formData[deviceId]||{};
+
+        const filterByTab=(attr) => {
+            if (activeTab==='tab1') {
+                return attr.attr_id!==11&&attr.attr_id<=12;
+            } else if (activeTab==='tab2') {
+                return (attr.attr_id>=13&&attr.attr_id<=18)||(attr.attr_id>=25&&attr.attr_id<=30);
+            } else if (activeTab==='tab3') {
+                return attr.attr_id>=19&&attr.attr_id<=24;
+            }
+            return false;
+        };
+
+        const filteredAttributes=device.attributes.filter(filterByTab);
+
+        for (const { holding_address, attr_id, value: defaultValue } of filteredAttributes) {
+            const rawValue=updatedFields[attr_id]??defaultValue;
+            const value=parseInt(rawValue);
+            if (isNaN(value)) continue;
+            const payload={
+                cmd: 'modbus_write',
+                param: {
+                    address: holding_address,
+                    value,
+                    slaveId: 1,
+                    ip: ip_address
+                }
+            };
+            sendWebSocketMessage(payload);
+            await delay(1000);
+        }
+
+        sendWebSocketMessage({
+            cmd: 'modbus_write',
+            param: {
+                address: 49,
+                value: 1,
+                slaveId: 1,
+                ip: ip_address
+            }
+        });
+
+        setBtnDisabledMap(prev => ({ ...prev, [deviceId]: false }));
+    };
+
+
+
+
 
     const handleAction=async (address, value) => {
         sendWebSocketMessage({
@@ -26,16 +89,29 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
         }));
     };
 
+    const formatSecondsToHHMMSS=(value) => {
+        const totalSeconds=parseInt(value);
+        if (isNaN(totalSeconds)) return "00:00:00";
+
+        const hours=String(Math.floor(totalSeconds/3600)).padStart(2, "0");
+        const minutes=String(Math.floor((totalSeconds%3600)/60)).padStart(2, "0");
+        const seconds=String(totalSeconds%60).padStart(2, "0");
+
+        return `${hours}:${minutes}:${seconds}`;
+    };
+
+
 
     return (
 
         <div className="grid grid-cols-3 items-start justify-center gap-4">
+
             <div className="grid grid-cols-2 gap-4">
                 {device_list.map((item) => {
                     if (item.type_id==4) {
                         return (
                             <div key={item.device_id} className="flex flex-col items-center  gap-2 w-full h-[130px] bg-gray-100 rounded-xl shadow-xl py-2 px-2">
-                                { item.attributes.map((attr) => {
+                                {item.attributes.map((attr) => {
                                     if (attr.attr_id==1) {
                                         return (
                                             <div key={attr.attr_id} className='w-full flex items-center'>
@@ -268,6 +344,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
             <div className="grid col-span-2 gap-4">
                 {device_list.map((item) => {
                     if (item.type_id==999) {
+                        const activeTab=tabs[item.device_id]||'tab1';
                         return (
                             <div key={item.device_id} className="flex flex-col items-start  gap-2 w-full  bg-gray-100 rounded-xl shadow-xl py-2 px-2">
                                 <div className="w-full flex items-center gap-2">
@@ -276,26 +353,130 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                         {item.device_name}
                                     </h3>
                                 </div>
-                                <form className="w-full grid grid-cols-3 gap-2">
-                                    {item.attributes.map((attr) => {
-                                        return (
-                                            <div key={attr.attr_id} className="w-full flex flex-col items-start justify-start">
-                                                <label htmlFor={attr.attr_id} className="text-sm font-semibold">
-                                                    {attr.attr_name}
-                                                </label>
-                                                <input
-                                                    id={attr.attr_id}
-                                                    type="text"
-                                                    // value={attr.value}
-                                                    defaultValue={attr.value}
-                                                    className="w-full border border-gray-300 rounded-sm p-1 text-sm" />
-                                            </div>
-                                        )
-                                    })}
-                                    <div className="col-span-3 w-full">
-                                        <button type="button" className="cursor-pointer font-bold text-white w-full bg-blue-500 rounded-lg py-1">Save</button>
-                                    </div>
-                                </form>
+                                {/* tab btn */}
+                                <div className="w-full flex items-center gap-2 border-b border-gray-300">
+                                    {['tab1', 'tab2', 'tab3'].map((tabKey, idx) => (
+                                        <button
+                                            key={tabKey}
+                                            className={`px-2 py-0 font-medium ${activeTab===tabKey? 'border-b-2 border-blue-500 text-blue-500':'text-gray-600 hover:text-blue-500'}`}
+                                            onClick={() => setTabs(prev => ({ ...prev, [item.device_id]: tabKey }))}
+                                        >
+                                            {['Default', 'ESM', 'Time'][idx]}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* tab content */}
+                                {(activeTab==='tab1'||activeTab==='tab2'||activeTab==='tab3')&&(
+                                    <form className="w-full grid grid-cols-3 gap-2">
+                                        {item.attributes
+                                            .filter(attr => {
+                                                if (activeTab=='tab1') return attr.attr_id!==11&&attr.attr_id<=12;
+                                                if (activeTab=='tab2') return (attr.attr_id>=13&&attr.attr_id<=18)||(attr.attr_id>=25&&attr.attr_id<=30);
+                                                if (activeTab=='tab3') return attr.attr_id>=19&&attr.attr_id<=24;
+                                                return false;
+                                            })
+                                            .map((attr) => (
+                                                <div key={attr.attr_id} className="w-full flex flex-col items-start justify-start">
+                                                    <label htmlFor={attr.attr_id} className="text-sm font-semibold">
+                                                        {attr.attr_name}
+                                                    </label>
+                                                    <input
+                                                        id={attr.attr_id}
+                                                        type="text"
+                                                        value={formData[item.device_id]?.[attr.attr_id]??attr.value}
+                                                        onChange={(e) => {
+                                                            let raw=e.target.value;
+
+                                                            // Always allow only numeric input
+                                                            let value=raw.replace(/\D/g, '');
+                                                            let num=parseInt(value);
+                                                            if (isNaN(num)) num='';
+
+
+                                                            const fanAttrIds=[0, 4, 9, 12, 13, 16];
+
+                                                            if (fanAttrIds.includes(attr.attr_id)) {
+                                                                if (num!=='') {
+                                                                    if (num<=0) num=0;
+                                                                    else if (num>=3) num=3;
+                                                                }
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    [item.device_id]: {
+                                                                        ...prev[item.device_id],
+                                                                        [attr.attr_id]: num
+                                                                    }
+                                                                }));
+                                                            } else {
+                                                                // Other attributes just accept numeric input as-is
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    [item.device_id]: {
+                                                                        ...prev[item.device_id],
+                                                                        [attr.attr_id]: num
+                                                                    }
+                                                                }));
+                                                            }
+                                                        }}
+                                                        className="w-full border border-gray-300 rounded-sm p-1 text-sm"
+                                                    />
+
+
+                                                    {(attr.attr_id==6||attr.attr_id==7||attr.attr_id==15||attr.attr_id==18)&&(
+                                                        <label htmlFor={attr.attr_id} className="text-xs">
+                                                            {formatSecondsToHHMMSS(formData[item.device_id]?.[attr.attr_id]??attr.value)}
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                        <div className="col-span-3 w-full">
+                                            {/* <button
+                                                type="button"
+                                                onClick={() => handleSave(item.device_id)}
+                                                className="cursor-pointer font-bold text-white w-full bg-blue-500 rounded-lg py-1"
+                                                disabled={btnDisabledMap[item.device_id]}
+                                            >
+                                                Save
+                                            </button> */}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSave(item.device_id)}
+                                                className="cursor-pointer font-bold text-white w-full bg-blue-500 rounded-lg py-1 flex items-center justify-center disabled:opacity-50"
+                                                disabled={btnDisabledMap[item.device_id]}
+                                            >
+                                                {btnDisabledMap[item.device_id]? (
+                                                    <>
+                                                        <svg
+                                                            className="animate-spin h-4 w-4 mr-2 text-white"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                className="opacity-25"
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                stroke="currentColor"
+                                                                strokeWidth="4"
+                                                            ></circle>
+                                                            <path
+                                                                className="opacity-75"
+                                                                fill="currentColor"
+                                                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                                                            ></path>
+                                                        </svg>
+                                                        Saving...
+                                                    </>
+                                                ):(
+                                                    "Save"
+                                                )}
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
                             </div>
                         )
                     }

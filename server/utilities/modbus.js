@@ -1,6 +1,9 @@
 const ModbusRTU=require('modbus-serial');
+const sequelize=require('../config/db');
 
+let lastSavedTimes={};
 let lastData={};
+let count=0
 
 exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) => {
     try {
@@ -11,7 +14,7 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
         }
 
         const changedData=newData.reduce((changes, value, index) => {
-            if (lastData[ip][index]!==value) {
+            if (lastData[ip][index]!==value&&index!=50&&index!=51&&index!=52&&index!=53&&index!=54&&index!=55) {
                 changes.push({ address: index, value });
             }
             return changes;
@@ -20,6 +23,10 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
         if (changedData.length>0) {
             // console.log(`Changed data for ${ip}:`, changedData);
             lastData[ip]=[...newData];
+
+
+            await updatedToDB(ip, changedData);
+            await saveToDB(ip, changedData);
 
             wsClients.forEach(client => {
                 if (client.isLogin==true&&client.updated==true) {
@@ -30,6 +37,7 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
                     }));
                 }
             });
+            count++
         }
     } catch (error) {
         console.error("Error during polling:", error);
@@ -40,7 +48,6 @@ exports.ConnectModbus=async (client, IP, port) => {
     try {
         await client.connectTCP(IP, { port });
         client.setID(1);
-        console.log(`Connected to Modbus device at ${IP}:${port}`);
     } catch (error) {
         console.error("Failed to connect to Modbus:", error);
     }
@@ -74,3 +81,150 @@ exports.ReadAllRegisters=async (client, totalRegisters, chunkSize, ip=null) => {
 };
 
 
+const updatedToDB=async (ip_address, data) => {
+    // console.log({ ip_address, data });
+    try {
+        const rooms=await sequelize.query(
+            `SELECT * FROM rooms WHERE ip_address = :ip_address`,
+            {
+                replacements: { ip_address },
+                type: sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (rooms.length>0) {
+            await Promise.all(data.map(async (item) => {
+                const result=await sequelize.query(
+                    `SELECT holding_address FROM attributes
+                        WHERE room_id = :room_id AND holding_address = :holding_address`,
+                    {
+                        replacements: { room_id: rooms[0].room_id, holding_address: item.address },
+                        type: sequelize.QueryTypes.SELECT,
+                    }
+                );
+
+                if (count==0) {
+                    if (result.length>0) {
+                        await sequelize.query(
+                            `UPDATE attributes SET value = :value WHERE holding_address = :holding_address`,
+                            {
+                                replacements: { value: item.value, holding_address: item.address },
+                                type: sequelize.QueryTypes.UPDATE,
+                            }
+                        );
+                        console.log(`DB: Updated attribute with holding_address ${item.address} at room_id ${rooms[0].room_id}`);
+                    }
+                } else {
+                    if (result.length>0&&
+                        ![60, 61, 62, 63, 64, 65, 70, 71, 49, 50, 51, 52, 53, 54, 55].includes(result[0].holding_address)
+                    ) {
+                        await sequelize.query(
+                            `UPDATE attributes SET value = :value WHERE holding_address = :holding_address`,
+                            {
+                                replacements: { value: item.value, holding_address: item.address },
+                                type: sequelize.QueryTypes.UPDATE,
+                            }
+                        );
+                        console.log(`DB: Updated attribute with holding_address ${item.address} at room_id ${rooms[0].room_id}`);
+                    }
+                }
+
+            }));
+
+        }
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+const saveToDB=async (ip_address, data) => {
+    try {
+        const rooms=await sequelize.query(
+            `SELECT * FROM rooms WHERE ip_address = :ip_address`,
+            {
+                replacements: { ip_address },
+                type: sequelize.QueryTypes.SELECT,
+            }
+        );
+
+        if (rooms.length>0) {
+            await Promise.all(data.map(async (item) => {
+                const result=await sequelize.query(
+                    `SELECT device_id, attr_id FROM attributes
+                        WHERE room_id = :room_id AND holding_address = :holding_address`,
+                    {
+                        replacements: { room_id: rooms[0].room_id, holding_address: item.address },
+                        type: sequelize.QueryTypes.SELECT,
+                    }
+                );
+
+                if (count!=0) {
+                    if (result.length>0) {
+                        if ([60, 61, 62, 63, 64, 65, 70, 71].includes(item.address)) {
+                            const currentTime=Date.now();
+                            const lastSavedTime=lastSavedTimes[item.address]||0;
+
+                            if (currentTime-lastSavedTime>=60000) {
+                                if (result.length>0) {
+                                    await sequelize.query(
+                                        `INSERT INTO device_control_log (room_id, device_id, attr_id, value)
+                                  VALUES (:room_id, :device_id, :attr_id, :value)`,
+                                        {
+                                            replacements: {
+                                                room_id: rooms[0].room_id,
+                                                device_id: result[0].device_id,
+                                                attr_id: result[0].attr_id,
+                                                value: item.value,
+                                            },
+                                            type: sequelize.QueryTypes.INSERT,
+                                        }
+                                    );
+                                    console.log(`DB: INSERT attribute with holding_address ${item.address} at room_id ${rooms[0].room_id}`);
+
+                                    lastSavedTimes[item.address]=currentTime;
+                                }
+                            }
+                        } else {
+                            if (result.length>0&&![49, 50, 51, 52, 53, 54, 55].includes(item.address)) {
+                                await sequelize.query(
+                                    `INSERT INTO device_control_log (room_id, device_id, attr_id, value)
+                              VALUES (:room_id, :device_id, :attr_id, :value)`,
+                                    {
+                                        replacements: {
+                                            room_id: rooms[0].room_id,
+                                            device_id: result[0].device_id,
+                                            attr_id: result[0].attr_id,
+                                            value: item.value,
+                                        },
+                                        type: sequelize.QueryTypes.INSERT,
+                                    }
+                                );
+                                console.log(`DB: INSERT attribute with holding_address ${item.address} at room_id ${rooms[0].room_id}`);
+                            }
+                        }
+                    }
+                }
+
+            }));
+
+        }
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+
+// await Promise.all({
+//      device=await sequelize.query(
+//         `SELECT attr.attr_id, attr.name, attr.value, attr.holding_address
+//             FROM attributes attr
+//             WHERE attr.device_id = :device_id AND attr.room_id = :room_id`,
+//         {
+//             replacements: { device_id: device.device_id, room_id: room.room_id },
+//             type: sequelize.QueryTypes.SELECT,
+//         }
+//     )
+// }
+// )

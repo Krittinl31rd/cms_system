@@ -15,3 +15,11 @@ export const sendStatusRoom=async (token, data) => {
         },
     });
 }
+
+export const getDevicesControlLogs=async (token) => {
+    return await axios.get(import.meta.env.VITE_API_URL+"/get-device-control-logs", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+};

@@ -21,6 +21,12 @@ const MainNav=() => {
                                 member?.role=='engineer'? '/engineer':''} className="text-2xl font-bold mr-4">
                             CMS SYSTEM
                         </Link>
+                        {member?.role=='admin'? (
+                            <Link to='/admin/logs' className="hover:underline">
+                                Logs
+                            </Link>
+                        ):null}
+
                     </div>
 
                     <div className="flex items-center gap-4">

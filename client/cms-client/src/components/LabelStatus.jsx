@@ -164,8 +164,8 @@ const LabelStatus=({ device_list }) => {
                                     )
                                 } else {
                                     return (
-                                        <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-blue-200 text-blue-700">
-                                            <span className="font-bold">ESM</span>
+                                        <span key={attr.attr_id} className="text-center py-2 px-4  font-semibold rounded-xl bg-green-200 text-green-700">
+                                            <span className="font-bold">ESM{attr.value}</span>
                                         </span>
                                     )
                                 }

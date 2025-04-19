@@ -3,6 +3,7 @@ import useCmsStore from '../../store/cmsstore';
 import { getAllDevicesAllRooms } from '../../api/Devices';
 import CardRoom from '../../components/CardRoom';
 import ModalRoom from '../../components/ModalRoom';
+import { toast } from 'react-toastify';
 
 const AdminDashboard=() => {
   const { token }=useCmsStore((state) => state);
@@ -69,9 +70,13 @@ const AdminDashboard=() => {
 
   // console.log(rooms)
 
+  const isTrustedIp=(ip) => {
+    return rooms.some((room) => room.ip_address==ip);
+  };
+
+
   const handleCommand=(msg) => {
     const { cmd, param }=msg;
-
     switch (cmd) {
       case 'login':
         if (param.status=='success') {
@@ -79,6 +84,7 @@ const AdminDashboard=() => {
         }
         break
       case 'getalldata':
+        // console.log(param)
         if (param.status=='success') {
           setRooms((prevData) => {
             const updatedData=prevData.map((room) => {
@@ -119,7 +125,7 @@ const AdminDashboard=() => {
           console.log('Failed to get all data');
         }
         break
-      case 'data_update':
+      case 'data_update': {
         console.log('Received data_update:', param);
         setRooms((prevData) => {
           const updatedData=prevData.map((room) => {
@@ -180,8 +186,24 @@ const AdminDashboard=() => {
           });
           // console.log(updatedData);
           return updatedData;
+
+
         });
 
+          const isSave=param.data.find((item) => item.address==49);
+          if (isSave!=undefined) {
+            if (isSave.value==2) {
+              toast.success(`Save config for ${param.ip} Scuccessfully :)`)
+            } else if (isSave.value==3) {
+              toast.error(`Save config for ${param.ip} Failed :(`)
+            } else {
+              return
+            }
+          }
+
+
+
+      }
         break;
       case ('room-status-update'):
         console.log('Room Status Updated:', param.data);
@@ -214,6 +236,19 @@ const AdminDashboard=() => {
         });
 
         break;
+
+      case 'isOnline':
+        // console.log(param)
+        setRooms(prevRooms =>
+          prevRooms.map(room =>
+            room.ip_address==param.ip_address
+              ? { ...room, is_online: param.isOnline? 1:0 }
+              :room
+          )
+        );
+
+        break;
+
     }
   };
 
@@ -232,13 +267,13 @@ const AdminDashboard=() => {
   // }, [rooms]);
 
   useEffect(() => {
-
     if (selectedRoom) {
       const updatedRoom=rooms.find((room) => room.ip_address==selectedRoom.ip_address);
       if (updatedRoom) {
         setSelectedRoom(updatedRoom);
       }
     }
+    // console.log(rooms)
   }, [rooms]);
 
 

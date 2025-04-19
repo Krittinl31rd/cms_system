@@ -47,6 +47,7 @@ exports.GetAllDevices=async (req, res) => {
                 room_name: room.name,
                 ip_address: room.ip_address,
                 mac_address: room.mac_address,
+                is_online: room.is_online,
                 device_list: deviceList,
             };
         }));
@@ -132,3 +133,37 @@ exports.SendRoomStatus=async (req, res) => {
         });
     }
 };
+
+exports.GetDeviceControlLog=async (req, res) => {
+    try {
+        const data=await sequelize.query(`
+        SELECT
+            dcl.id,
+            dcl.value AS value,
+            dcl.timestamp,
+
+            r.room_id AS room_id,
+            r.name AS room_name,
+
+            d.device_id AS device_id,
+            d.name AS device_name,
+            d.device_type,
+
+            a.attr_id AS attr_id,
+            a.name AS attribute_name
+
+        FROM device_control_log dcl
+        JOIN rooms r ON dcl.room_id = r.room_id
+        JOIN devices d ON dcl.room_id = d.room_id AND dcl.device_id = d.device_id
+        JOIN attributes a ON dcl.room_id = a.room_id 
+                        AND dcl.device_id = a.device_id 
+                        AND dcl.attr_id = a.attr_id
+        ORDER BY dcl.timestamp DESC`, {
+            type: sequelize.QueryTypes.SELECT
+        });
+        res.status(200).json({data})
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ message: 'Internal server error' })
+    }
+}

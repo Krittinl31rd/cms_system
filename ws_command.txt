@@ -1,0 +1,11 @@
+send: 
+{ cmd: 'login', param: { token } }
+{ cmd: 'modbus_write', param: { address: holding_address,value,slaveId: 1,ip: ip_address } }
+
+
+receive: 
+{ cmd: 'login', param: { status: 'success', message: 'Login successful', clientId: infoClient.id } }
+{ cmd: 'getalldata', param: { status: 'success', data: allResults } }
+{ cmd: 'data_update', param: { status: 'success', data: changedData, ip }}
+{ cmd: 'room-status-update', param: { status: 'success', data: { room_id, device_id, attr_id, value } } }
+
