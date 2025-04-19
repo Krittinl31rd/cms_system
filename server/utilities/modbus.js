@@ -14,7 +14,9 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
         }
 
         const changedData=newData.reduce((changes, value, index) => {
-            if (lastData[ip][index]!==value&&index!=50&&index!=51&&index!=52&&index!=53&&index!=54&&index!=55) {
+            if (lastData[ip][index]!==value&&
+            ![29, 91, 88, 89, 90, 50, 51, 52, 53, 54, 55].includes(index)
+            ) {
                 changes.push({ address: index, value });
             }
             return changes;
