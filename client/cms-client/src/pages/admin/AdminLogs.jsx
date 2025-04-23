@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import useCmsStore from '../../store/cmsstore';
 import { getDevicesControlLogs } from '../../api/Devices';
 import DataTable from "react-data-table-component";
+import { RefreshCcw } from "lucide-react";
 
 const columns=[
     { name: "Room", selector: row => row.room_name, sortable: true },
@@ -15,13 +16,21 @@ const AdminLogs=() => {
     const { token }=useCmsStore((state) => state);
     const [logs, setLogs]=useState([]);
     const [filterText, setFilterText]=useState("");
+    const [isRefreshing, setIsRefreshing]=useState(false);
 
     const fetchLogs=async () => {
+        if (isRefreshing) return;
+
+        setIsRefreshing(true);
         try {
             const res=await getDevicesControlLogs(token);
             setLogs(res.data.data||[]);
         } catch (err) {
             console.error("Failed to fetch logs:", err);
+        } finally {
+            setTimeout(() => {
+                setIsRefreshing(false);
+            }, 2000);
         }
     };
 
@@ -50,7 +59,16 @@ const AdminLogs=() => {
                     onChange={(e) => setFilterText(e.target.value)}
                 />
             </div>
-
+            <div className="w-full flex items-center justify-end mb-4">
+                <button
+                    onClick={fetchLogs}
+                    disabled={isRefreshing}
+                    className={`border p-1 rounded-lg ${isRefreshing? 'opacity-50 cursor-not-allowed':'cursor-pointer'}`}
+                    title={isRefreshing? "Please wait...":"Refresh logs"}
+                >
+                    <RefreshCcw size={16} />
+                </button>
+            </div>
             <DataTable
                 title="Device Control Logs"
                 columns={columns}

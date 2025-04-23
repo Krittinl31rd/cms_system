@@ -31,5 +31,10 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
     "vite": "^6.2.0"
-  }
+  },
+  "browserslist": [
+    "defaults",
+    "not IE 11",
+    "last 2 versions"
+  ]
 }

@@ -123,6 +123,7 @@ exports.ControlLight=async (req, res) => {
         if (result.length==0) {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
+        
         const modbusClient=getPollIntervals().find(server => server.ip==result[0].ip_address)?.client;
         if (!modbusClient) {
             return res.status(404).json({ success: false, message: 'Modbus client not found' });

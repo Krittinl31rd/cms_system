@@ -15,7 +15,7 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
 
         const changedData=newData.reduce((changes, value, index) => {
             if (lastData[ip][index]!==value&&
-            ![29, 91, 88, 89, 90, 50, 51, 52, 53, 54, 55].includes(index)
+                ![29, 91, 88, 89, 90, 50, 51, 52, 53, 54, 55].includes(index)
             ) {
                 changes.push({ address: index, value });
             }
@@ -167,7 +167,7 @@ const saveToDB=async (ip_address, data) => {
                             const currentTime=Date.now();
                             const lastSavedTime=lastSavedTimes[item.address]||0;
 
-                            if (currentTime-lastSavedTime>=60000) {
+                            if (currentTime-lastSavedTime>=600000) {
                                 if (result.length>0) {
                                     await sequelize.query(
                                         `INSERT INTO device_control_log (room_id, device_id, attr_id, value)
@@ -230,3 +230,8 @@ const saveToDB=async (ip_address, data) => {
 //     )
 // }
 // )
+
+
+
+
+

@@ -1,5 +1,6 @@
 const sequelize=require('../config/db')
 const { wsClients }=require('../websocketServer')
+const { getPollIntervals }=require('../utilities/pollInterval.js');
 
 exports.GetAllDevices=async (req, res) => {
     try {
@@ -84,55 +85,76 @@ exports.GetAllDevices=async (req, res) => {
 
 exports.SendRoomStatus=async (req, res) => {
     const { room_id, device_id, attr_id, value }=req.body;
+
+    const broadcastUpdate=(status, dataOrMessage) => {
+        wsClients.forEach((client) => {
+            if (!client.isLogin) return;
+            try {
+                client.socket.send(JSON.stringify({
+                    cmd: 'room-status-update',
+                    param: status=='success'
+                        ? { status, data: dataOrMessage }
+                        :{ status, message: dataOrMessage }
+                }));
+            } catch (wsErr) {
+                console.error('WebSocket send error:', wsErr);
+            }
+        });
+    };
+
     try {
-        const query=`
+
+        await sequelize.query(`
             UPDATE attributes
             SET value = :value
             WHERE room_id = :room_id AND device_id = :device_id AND attr_id = :attr_id
-        `;
-        await sequelize.query(query, {
+        `, {
             replacements: { room_id, device_id, attr_id, value },
             type: sequelize.QueryTypes.UPDATE
         });
-        res.status(200).json({ message: `Updated attribute ${attr_id} in room ${room_id} with value ${value} successfully` });
 
-        wsClients.forEach((client) => {
-            if (client.isLogin) {
-                try {
-                    client.socket.send(JSON.stringify({
-                        cmd: 'room-status-update',
-                        param: {
-                            status: 'success',
-                            data: { room_id, device_id, attr_id, value }
-                        }
-                    }));
-                } catch (wsErr) {
-                    console.error('Error sending WebSocket message:', wsErr);
-                    client.socket.send(JSON.stringify({
-                        cmd: 'room-status-update',
-                        param: {
-                            status: 'error', message: 'Internal server error'
-                        }
-                    }));
-                }
-            }
+        await sequelize.query(`
+            INSERT INTO device_control_log (room_id, device_id, attr_id, value)
+            VALUES (:room_id, :device_id, :attr_id, :value)
+        `, {
+            replacements: { room_id, device_id, attr_id, value },
+            type: sequelize.QueryTypes.INSERT,
         });
+
+        broadcastUpdate('success', { room_id, device_id, attr_id, value });
+
+        if (device_id===0&&(attr_id===7||attr_id===8)) {
+            const [room]=await sequelize.query(`
+                SELECT ip_address FROM rooms WHERE room_id = :room_id
+            `, {
+                replacements: { room_id },
+                type: sequelize.QueryTypes.SELECT,
+            });
+
+            if (!room) {
+                return res.status(404).json({ success: false, message: 'Room not found' });
+            }
+
+            const modbusClient=getPollIntervals().find(server => server.ip===room.ip_address)?.client;
+            if (!modbusClient) {
+                return res.status(404).json({ success: false, message: 'Modbus client not found' });
+            }
+
+            modbusClient.setID(1);
+            await modbusClient.writeRegister(20, value===0? 0:1);
+        }
+
+        res.status(200).json({
+            message: `Updated attribute ${attr_id} in room ${room_id} with value ${value} successfully`
+        });
+
     } catch (err) {
-        console.error('Database update failed:', err);
+        console.error('SendRoomStatus Error:', err);
+        broadcastUpdate('error', 'Internal server error');
         res.status(500).json({ message: 'Internal server error' });
-
-        wsClients.forEach((client) => {
-            if (client.isLogin) {
-                client.socket.send(JSON.stringify({
-                    cmd: 'room-status-update',
-                    param: {
-                        status: 'error', message: 'Internal server error'
-                    }
-                }));
-            }
-        });
     }
 };
+
 
 exports.GetDeviceControlLog=async (req, res) => {
     try {
@@ -161,9 +183,10 @@ exports.GetDeviceControlLog=async (req, res) => {
         ORDER BY dcl.timestamp DESC`, {
             type: sequelize.QueryTypes.SELECT
         });
-        res.status(200).json({data})
+        res.status(200).json({ data })
     } catch (err) {
         console.log(err)
         res.status(500).json({ message: 'Internal server error' })
     }
 }
+

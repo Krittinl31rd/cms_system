@@ -22,14 +22,14 @@ const LoadingToRedirect=() => {
 
     if (redirect) {
         if (member?.role=="admin") {
-            return <Navigate to={"/admin"} />;
+            return <Navigate to={import.meta.env.VITE_BASE_URL+"/admin"} />;
         } else if (member?.role=="housekeeper") {
-            return <Navigate to={"/housekeeper"} />;
+            return <Navigate to={import.meta.env.VITE_BASE_URL+"/housekeeper"} />;
         } else if (member?.role=="engineer") {
-            return <Navigate to={"/engineer"} />;
+            return <Navigate to={import.meta.env.VITE_BASE_URL+"/engineer"} />;
         }
         else {
-            return <Navigate to={"/login"} />;
+            return <Navigate to={import.meta.env.VITE_BASE_URL+"/login"} />;
         }
     }
 

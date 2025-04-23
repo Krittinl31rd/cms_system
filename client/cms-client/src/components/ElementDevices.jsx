@@ -105,7 +105,36 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
     return (
 
         <div className="grid grid-cols-3 items-start justify-center gap-4">
-
+            <div className="flex items-center justify-end col-span-3 gap-4">
+                <button
+                    className="cursor-pointer inline-flex items-center justify-center py-1 px-2 rounded-full font-semibold bg-yellow-300"
+                    onClick={() => {
+                        sendWebSocketMessage({
+                            cmd: 'modbus_write',
+                            param: {
+                                address: 4,
+                                value: 1,
+                                slaveId: 1,
+                                ip: ip_address
+                            }
+                        });
+                    }}
+                >Master ON</button>
+                <button
+                    className="cursor-pointer inline-flex items-center justify-center py-1 px-2 rounded-full font-semibold bg-red-400"
+                    onClick={() => {
+                        sendWebSocketMessage({
+                            cmd: 'modbus_write',
+                            param: {
+                                address: 4,
+                                value: 0,
+                                slaveId: 1,
+                                ip: ip_address
+                            }
+                        });
+                    }}
+                >Master OFF</button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
                 {device_list.map((item) => {
                     if (item.type_id==4) {
@@ -361,11 +390,33 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                             className={`px-2 py-0 font-medium ${activeTab===tabKey? 'border-b-2 border-blue-500 text-blue-500':'text-gray-600 hover:text-blue-500'}`}
                                             onClick={() => setTabs(prev => ({ ...prev, [item.device_id]: tabKey }))}
                                         >
-                                            {['Default', 'ESM', 'Time'][idx]}
+                                            {['Tab1', 'Tab2', 'Tab3'][idx]}
                                         </button>
                                     ))}
                                 </div>
+                                {/* 
+    ESM
+    '101', '999', '0', 'Fan Check-In', '3', '-1', '37'
+'101', '999', '1', 'Temp Check-In', '23', '-1', '38'
+'101', '999', '2', 'Fan Check-Out', '1', '-1', '39'
+'101', '999', '3', 'Temp Check-Out', '28', '-1', '40'
+'101', '999', '4', 'Fan ESM3', '0', '-1', '41'
+'101', '999', '5', 'Temp ESM3', '25', '-1', '42'
+'101', '999', '6', 'Time Delay ESM3', '10', '-1', '43'
+'101', '999', '13', 'Fan ESM4', '3', '-1', '81'
+'101', '999', '14', 'Temp ESM4', '22', '-1', '82'
+'101', '999', '15', 'Time Delay ESM4', '150', '-1', '83'
+'101', '999', '16', 'Fan ESM5', '3', '-1', '84'
+'101', '999', '17', 'Temp ESM5', '16', '-1', '85'
+'101', '999', '18', 'Time Delay ESM5', '196', '-1', '86'
+SLEEP
+'101', '999', '25', 'Hour Sleep Start', '24', '-1', '21'
+'101', '999', '26', 'Min Sleep Start', '15', '-1', '22'
+'101', '999', '27', 'Sleep ESM Time', '2', '-1', '23'
+'101', '999', '28', 'Sleep Temp Max', '5', '-1', '24'
+'101', '999', '29', 'Hour Sleep Reverse', '15', '-1', '25'
 
+*/}
                                 {/* tab content */}
                                 {(activeTab==='tab1'||activeTab==='tab2'||activeTab==='tab3')&&(
                                     <form className="w-full grid grid-cols-3 gap-2">
@@ -482,6 +533,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                     }
                 })}
             </div>
+
         </div>
     )
 }

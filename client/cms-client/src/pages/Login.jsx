@@ -34,11 +34,11 @@ const login=() => {
 
     const roleRedirect=(role) => {
         if (role=="admin") {
-            navigate("/admin");
+            navigate(import.meta.env.VITE_BASE_URL+"/admin");
         } else if (role=="housekeeper") {
-            navigate("/housekeeper");
+            navigate(import.meta.env.VITE_BASE_URL+"/housekeeper");
         } else if (role=="engineer") {
-            navigate("/engineer");
+            navigate(import.meta.env.VITE_BASE_URL+"/engineer");
         }
     };
 

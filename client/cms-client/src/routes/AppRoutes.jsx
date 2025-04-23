@@ -12,18 +12,18 @@ import AdminLogs from '../pages/admin/AdminLogs'
 
 const router=createBrowserRouter([
     {
-        path: '/login',
+        path: import.meta.env.VITE_BASE_URL + '/login',
         element: <Login />
     },
     {
-        path: '/',
+        path: import.meta.env.VITE_BASE_URL+'/',
         element: <></>,
         children: [
             { index: true, element: <></> },
         ]
     },
     {
-        path: '/admin',
+        path: import.meta.env.VITE_BASE_URL+'/admin',
         element: <ProtectRouteAdmin element={<Layout />} />,
         children: [
             { index: true, element: <AdminDashboard /> },
@@ -31,25 +31,26 @@ const router=createBrowserRouter([
         ]
     },
     {
-        path: '/housekeeper',
+        path: import.meta.env.VITE_BASE_URL+'/housekeeper',
         element: <ProtectRouteHousekeeper element={<Layout />} />,
         children: [
             { index: true, element: <HousekeeperDashboard /> },
         ]
     },
     {
-        path: '/engineer',
+        path: import.meta.env.VITE_BASE_URL+'/engineer',
         element: <ProtectRouteEngineer element={<Layout />} />,
         children: [
             { index: true, element: <EngineerDashboard /> },
         ]
     },
-])
+],
+)
 
 const AppRoutes=() => {
     return (
         <>
-            <RouterProvider router={router} />
+            <RouterProvider router={router} basename={import.meta.env.VITE_BASE_URL} />
         </>
     )
 }

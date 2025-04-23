@@ -261,6 +261,7 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                                         Control
                                                     </button>
                                                     <button
+                                                    disabled={attr.value==1?true:false}
                                                         onClick={() =>
                                                             handleAction(
                                                                 item.device_id,
@@ -269,11 +270,13 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                                                 1
                                                             )
                                                         }
-                                                        className="flex-1 cursor-pointer p-2 bg-green-200 text-green-700 font-semibold rounded-xl"
+                                                        className={`${attr.value==1? 'opacity-70 cursor-not-allowed':'cursor-pointer'}
+                                                        flex-1 p-2 bg-green-200 text-green-700 font-semibold rounded-xl`}
                                                     >
                                                         Check-In
                                                     </button>
                                                     <button
+                                                        disabled={attr.value==0? true:false}
                                                         onClick={() =>
                                                             handleAction(
                                                                 item.device_id,
@@ -282,7 +285,8 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                                                 0
                                                             )
                                                         }
-                                                        className="flex-1 cursor-pointer p-2 bg-red-200 text-red-700 font-semibold rounded-xl"
+                                                        className={`${attr.value==0? 'opacity-70 cursor-not-allowed':'cursor-pointer'}
+                                                            flex-1  p-2 bg-red-200 text-red-700 font-semibold rounded-xl`}
                                                     >
                                                         Check-Out
                                                     </button>

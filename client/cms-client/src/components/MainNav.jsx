@@ -16,13 +16,13 @@ const MainNav=() => {
             <div className="mx-auto px-4">
                 <div className="flex justify-between h-16">
                     <div className="flex items-center gap-4">
-                        <Link to={member?.role=='admin'? '/admin':
-                            member?.role=='houserkeeper'? '/housekeeper':
-                                member?.role=='engineer'? '/engineer':''} className="text-2xl font-bold mr-4">
+                        <Link to={member?.role=='admin'? import.meta.env.VITE_BASE_URL+'/admin':
+                            member?.role=='houserkeeper'? import.meta.env.VITE_BASE_URL+'/housekeeper':
+                                member?.role=='engineer'? import.meta.env.VITE_BASE_URL+'/engineer':''} className="text-2xl font-bold mr-4">
                             CMS SYSTEM
                         </Link>
                         {member?.role=='admin'? (
-                            <Link to='/admin/logs' className="hover:underline">
+                            <Link to={import.meta.env.VITE_BASE_URL+'/admin/logs'} className="hover:underline">
                                 Logs
                             </Link>
                         ):null}
