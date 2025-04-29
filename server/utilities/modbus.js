@@ -31,7 +31,7 @@ exports.PoolModbusData=async (client, totalRegisters, chunkSize, wsClients, ip) 
             await saveToDB(ip, changedData);
 
             wsClients.forEach(client => {
-                if (client.isLogin==true&&client.updated==true) {
+                if (client.isLogin==true&&client.updated==true&&client.member.role=='admin') {
                     // if (client.isLogin && client.ip==ip) {
                     client.socket.send(JSON.stringify({
                         cmd: 'data_update',
@@ -216,21 +216,6 @@ const saveToDB=async (ip_address, data) => {
         console.log(err);
     }
 }
-
-
-// await Promise.all({
-//      device=await sequelize.query(
-//         `SELECT attr.attr_id, attr.name, attr.value, attr.holding_address
-//             FROM attributes attr
-//             WHERE attr.device_id = :device_id AND attr.room_id = :room_id`,
-//         {
-//             replacements: { device_id: device.device_id, room_id: room.room_id },
-//             type: sequelize.QueryTypes.SELECT,
-//         }
-//     )
-// }
-// )
-
 
 
 

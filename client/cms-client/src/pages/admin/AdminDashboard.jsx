@@ -234,7 +234,6 @@ const AdminDashboard=() => {
           // console.log(updatedData)
           return updatedData;
         });
-
         break;
 
       case 'isOnline':
@@ -278,7 +277,7 @@ const AdminDashboard=() => {
 
 
   return (
-    <div className="w-full h-full overflow-auto">
+    <div className="w-full h-full overflow-auto pr-2">
       {isWsReady? (
         <h3 className="text-end font-semibold text-green-500 mb-4">WebSocket is ready</h3>
       ):(

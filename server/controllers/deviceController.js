@@ -57,6 +57,7 @@ exports.GetAllDevices=async (req, res) => {
             message: 'Get all devices successfully',
             data: roomList
         })
+        
 
     } catch (err) {
         console.log(err)

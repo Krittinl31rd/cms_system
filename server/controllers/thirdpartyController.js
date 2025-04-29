@@ -123,13 +123,29 @@ exports.ControlLight=async (req, res) => {
         if (result.length==0) {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
-        
+
         const modbusClient=getPollIntervals().find(server => server.ip==result[0].ip_address)?.client;
         if (!modbusClient) {
             return res.status(404).json({ success: false, message: 'Modbus client not found' });
         }
         modbusClient.setID(1);
-        await modbusClient.writeRegister(result[0].holding_address, value);
+        // await modbusClient.writeRegister(result[0].holding_address, value);
+        // res.status(200).json({ success: true });
+
+        const withTimeout=(promise, ms=5000) =>
+            Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
+
+        try {
+            await withTimeout(modbusClient.writeRegister(result[0].holding_address, value), 5000);
+        } catch (err) {
+            console.error('Modbus write error:', err);
+            return res.status(500).json({ success: false, message: 'Failed to write to device' });
+        }
+        
+
         res.status(200).json({ success: true });
 
     } catch (err) {

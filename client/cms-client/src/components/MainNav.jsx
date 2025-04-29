@@ -9,7 +9,7 @@ const MainNav=() => {
 
     const handleLogout=() => {
         actionLogout();
-        navigate('/login');
+        navigate(import.meta.env.VITE_BASE_URL+'/login');
     }
     return (
         <nav className="bg-white shadow-xl">

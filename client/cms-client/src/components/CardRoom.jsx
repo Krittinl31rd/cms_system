@@ -2,6 +2,7 @@ import { sendStatusRoom } from "../api/Devices"
 import useCmsStore from "../store/cmsstore";
 
 const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
+    console.log(item)
     const { token, member }=useCmsStore((state) => state);
 
     const handleAction=async (device_id, attr_id, address, value) => {
@@ -36,7 +37,7 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
     }
 
     return (
-        <div className="w-full flex flex-col justify-between rounded-2xl p-4 shadow bg-white hover:shadow-xl space-y-4">
+        <div className="w-full flex flex-col justify-between rounded-2xl p-4 shadow bg-white hover:shadow-xl space-y-4 h-[350px]">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold">{item.room_name}</h2>
                 <div className="flex items-center gap-1">

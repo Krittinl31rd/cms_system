@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import useCmsStore from '../../store/cmsstore';
 import { getAllDevicesAllRooms } from '../../api/Devices';
-import CardRoom from '../../components/CardRoom';
-import ModalRoom from '../../components/ModalRoom';
+import DataTable from '../../components/DataTable';
+
 
 const HousekeeperDashboard=() => {
     const { token }=useCmsStore((state) => state);
     const [rooms, setRooms]=useState([]);
+    const [statusFilter, setStatusFilter]=useState('');
     const [isWsReady, setIsWsReady]=useState(false);
-    const [isModalOpen, setIsModalOpen]=useState(false);
-    const [selectedRoom, setSelectedRoom]=useState(null);
     const ws=useRef(null);
 
     useEffect(() => {
@@ -59,7 +58,7 @@ const HousekeeperDashboard=() => {
     };
 
     const sendWebSocketMessage=(message) => {
-        if (ws.current&&ws.current.readyState===WebSocket.OPEN) {
+        if (ws.current&&ws.current.readyState==WebSocket.OPEN) {
             ws.current.send(JSON.stringify(message));
         } else {
             console.warn('WebSocket not open, retrying...');
@@ -67,125 +66,11 @@ const HousekeeperDashboard=() => {
         }
     };
 
-    // console.log(rooms)
-
     const handleCommand=(msg) => {
         const { cmd, param }=msg;
-
         switch (cmd) {
-            case 'login':
-                if (param.status=='success') {
-                    console.log('Login success');
-                }
-                break
-            case 'getalldata':
-                if (param.status=='success') {
-                    setRooms((prevData) => {
-                        const updatedData=prevData.map((room) => {
-                            const matchingData=param.data.find((newItem) => newItem.ip===room.ip_address);
-                            if (matchingData) {
-                                return {
-                                    ...room,
-                                    device_list: room.device_list.map((device) => {
-                                        return {
-                                            ...device,
-                                            attributes: device.attributes.map((attr) => {
-                                                // if (matchingData.data[5]==0&&matchingData.data[6]==0) {
-                                                //   matchingData.data[5]=0
-                                                // } else if (matchingData.data[6]==1) {
-                                                //   matchingData.data[5]=2
-                                                // }
-                                                const serverValue=matchingData.data[attr.holding_address];
-                                                if (serverValue!==undefined) {
-                                                    return {
-                                                        ...attr,
-                                                        value: serverValue,
-                                                    };
-                                                }
-                                                return attr;
-                                            }),
-                                        };
-                                    }),
-                                };
-                            }
-                            return room;
-                        });
-
-                        // console.log(updatedData);
-                        return updatedData;
-                    });
-
-                } else {
-                    console.log('Failed to get all data');
-                }
-                break
-            case 'data_update':
-                console.log('Received data_update:', param);
-                setRooms((prevData) => {
-                    const updatedData=prevData.map((room) => {
-                        if (room.ip_address==param.ip) {
-                            const updatedRoom={
-                                ...room,
-                                device_list: room.device_list.map((device) => {
-                                    return {
-                                        ...device,
-                                        attributes: device.attributes.map((attr) => {
-                                            // 5MUR, 6DND
-                                            // if (attr.holding_address==5) {
-                                            //   const value5=param.data.find((p) => p.address==5)?.value
-                                            //     ??device.attributes.find((a) => a.holding_address==5)?.value
-                                            //     ??0;
-
-                                            //   const value6=param.data.find((p) => p.address==6)?.value
-                                            //     ??device.attributes.find((a) => a.holding_address==6)?.value
-                                            //     ??0;
-
-                                            //   let finalValue=0;
-
-                                            //   if (value6===1) {
-                                            //     finalValue=2;
-                                            //   } else if (value5===1&&value6===0) {
-                                            //     finalValue=1;
-                                            //   }
-
-
-                                            //   return {
-                                            //     ...attr,
-                                            //     value: finalValue,
-                                            //   };
-                                            // } else {
-                                            //   const newItem=param.data.find((p) => p.address==attr.holding_address);
-                                            //   if (newItem) {
-                                            //     return {
-                                            //       ...attr,
-                                            //       value: newItem.value,
-                                            //     };
-                                            //   }
-                                            // }
-                                            const newItem=param.data.find((p) => p.address==attr.holding_address);
-                                            if (newItem) {
-                                                return {
-                                                    ...attr,
-                                                    value: newItem.value,
-                                                };
-                                            }
-                                            return attr;
-                                        }),
-                                    };
-                                }),
-                            };
-                            return updatedRoom;
-                        }
-                        return room;
-                    });
-                    // console.log(updatedData);
-                    return updatedData;
-                });
-
-                break;
             case ('room-status-update'):
                 console.log('Room Status Updated:', param.data);
-                // setStatusRealtime(param.data);
                 setRooms((prevData) => {
                     const updatedData=prevData.map((room) => {
                         if (room.room_id==param.data.room_id) {
@@ -217,49 +102,87 @@ const HousekeeperDashboard=() => {
         }
     };
 
-    const openModal=(room) => {
-        setSelectedRoom(room);
-        setIsModalOpen(true);
-    };
-
-    const closeModal=() => {
-        setIsModalOpen(false);
-        setSelectedRoom(null);
-    };
 
     // useEffect(() => {
     //   console.log('Rooms updated:', rooms);
     // }, [rooms]);
 
-    useEffect(() => {
-
-        if (selectedRoom) {
-            const updatedRoom=rooms.find((room) => room.ip_address==selectedRoom.ip_address);
-            if (updatedRoom) {
-                setSelectedRoom(updatedRoom);
-            }
-        }
-    }, [rooms]);
-
+    const totalRooms=rooms.length;
+    const occupiedDirty=rooms.filter((room) => room.device_list?.find(device => device.device_id==0)?.attributes?.[3]?.value==1).length;
+    const occupiedClean=rooms.filter((room) => room.device_list?.find(device => device.device_id==0)?.attributes?.[3]?.value==2).length;
+    const unoccupiedClean=rooms.filter((room) => room.device_list?.find(device => device.device_id==0)?.attributes?.[3]?.value==3).length;
+    const unoccupiedDirty=rooms.filter((room) => room.device_list?.find(device => device.device_id==0)?.attributes?.[3]?.value==4).length;
 
     return (
-        <div className="w-full h-full overflow-auto">
+        <div className="flex flex-col items-start justify-start w-full h-full overflow-auto gap-4">
             {isWsReady? (
                 <h3 className="text-end font-semibold text-green-500 mb-4">WebSocket is ready</h3>
             ):(
                 <h3 className="text-end font-semibold text-red-500 mb-4">WebSocket is not ready</h3>
             )}
+            <div className="w-full grid sm:grid-cols-2  md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 place-items-center">
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {rooms.map((item, index) => (
-                    <CardRoom key={index} item={item} onClick={() => openModal(item)} sendWebSocketMessage={sendWebSocketMessage} />
-                ))}
+                <button
+                    className="cursor-pointer w-[200px] h-[200px] rounded-lg shadow-xl p-4 gap-4 flex flex-col items-center justify-center"
+                    onClick={() => setStatusFilter('')}
+                >
+                    <h1 className='text-7xl font-bold text-indigo-500 break-all'>{totalRooms}</h1>
+                    <div className='w-full flex items-center justify-start'>
+                        <h3 className='text-xl text-gray-800 font-semibold'>Total Rooms</h3>
+                    </div>
+                </button>
+
+                <button
+                    className="cursor-pointer w-[200px] h-[200px] rounded-lg shadow-xl p-4 gap-4 flex flex-col items-center justify-center"
+                    onClick={() => setStatusFilter(1)}
+                >
+                    <h1 className='text-7xl font-bold text-red-400 break-all'>{occupiedDirty}</h1>
+                    <div className='w-full flex items-center justify-start'>
+                        <h3 className='text-xl text-gray-800 font-semibold'>Occupied Dirty</h3>
+                    </div>
+                </button>
+
+                <button
+                    className="cursor-pointer w-[200px] h-[200px] rounded-lg shadow-xl p-4 gap-4 flex flex-col items-center justify-center"
+                    onClick={() => setStatusFilter(2)}
+                >
+                    <h1 className='text-7xl font-bold text-green-400 break-all'>{occupiedClean}</h1>
+                    <div className='w-full flex items-center justify-start'>
+                        <h3 className='text-xl text-gray-800 font-semibold'>Occupied Clean</h3>
+                    </div>
+                </button>
+
+                <button
+                    className="cursor-pointer w-[200px] h-[200px] rounded-lg shadow-xl p-4 gap-4 flex flex-col items-center justify-center"
+                    onClick={() => setStatusFilter(3)}
+                >
+                    <h1 className='text-7xl font-bold text-blue-400 break-all'>{unoccupiedClean}</h1>
+                    <div className='w-full flex items-center justify-start'>
+                        <h3 className='text-xl text-gray-800 font-semibold'>Unoccupied Clean</h3>
+                    </div>
+                </button>
+
+                <button
+                    className="cursor-pointer w-[200px] h-[200px] rounded-lg shadow-xl p-4 gap-4 flex flex-col items-center justify-center"
+                    onClick={() => setStatusFilter(4)}
+                >
+                    <h1 className='text-6xl font-bold text-orange-400 break-all'>{unoccupiedDirty}</h1>
+                    <div className='w-full flex items-center justify-start'>
+                        <h3 className='text-xl text-gray-800 font-semibold'>Unoccupied Dirty</h3>
+                    </div>
+                </button>
+
             </div>
-            {isModalOpen&&selectedRoom&&(
-                <ModalRoom isOpen={isModalOpen} onClose={closeModal} room={selectedRoom} sendWebSocketMessage={sendWebSocketMessage} />
-            )}
-        </div>
 
+            <DataTable
+                data={rooms}
+                loading={rooms.length==0}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+            />
+
+
+        </div>
 
     );
 }

@@ -15,48 +15,6 @@ const MODBUS_TOTAL_REGISTERS=90;
 const MODBUS_CHUNK_SIZE=125;
 
 const { addPollInterval, removePollInterval, getPollIntervals }=require('./utilities/pollInterval.js');
-// let pollIntervals=[];
-
-// async function startPolling() {
-//     try {
-//         // Connect to multiple Modbus servers
-//         for (let { ip, port } of MODBUS_TCP_IPS) {
-//             const client=new ModbusRTU();
-//             await ConnectModbus(client, ip, port);
-//             // console.log(`Connected to Modbus server at ${ip}:${port}`);
-
-//             // Start polling for each server
-//             const pollInterval=setInterval(() => pollModbusData(client, ip), 1000);
-//             pollIntervals.push({ ip, pollInterval, client });
-//         }
-//     } catch (error) {
-//         console.error('Failed to connect to Modbus server:', error);
-//         setTimeout(startPolling, 5000);
-//     }
-// }
-
-// function stopPolling() {
-//     pollIntervals.forEach(({ pollInterval, client }) => {
-//         clearInterval(pollInterval);
-//         console.log(`Polling stopped for server ${client._host}`);
-//     });
-//     pollIntervals=[];
-// }
-
-// async function pollModbusData(client, ip) {
-//     try {
-//         if (!client.isOpen) {
-//             console.log(`Modbus connection to ${ip} is not open, skipping polling...`);
-//             return;
-//         }
-//         await PoolModbusData(client, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, wsClients, ip);
-//     } catch (error) {
-//         console.error(`Error during polling for ${ip}:`, error);
-//         stopPolling();
-//     }
-// }
-
-// startPolling();
 
 function broadcastStatusUpdate(ip, status) {
     wsClients.forEach(client => {
@@ -125,19 +83,6 @@ async function pollModbusData(client, ip, port) {
 
 
 
-// async function pollModbusData(client, ip, port) {
-//     try {
-//         if (!client.isOpen) {
-//             console.warn(`Modbus connection to ${ip} is closed. Reconnecting...`);
-//             await reconnectModbusClient(ip, port);
-//             return;
-//         }
-//         await PoolModbusData(client, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, wsClients, ip);
-//     } catch (error) {
-//         console.error(`Polling error on ${ip}:`, error);
-//         await reconnectModbusClient(ip, port); // Attempt to reconnect on polling error
-//     }
-// }
 
 async function reconnectModbusClient(ip, port) {
     const entry=getPollIntervals().find(item => item.ip===ip&&item.port===port);
@@ -371,7 +316,6 @@ async function sendAllData(ws) {
                 });
             }
         }
-
         ws.send(JSON.stringify({
             cmd: 'getalldata',
             param: { status: 'success', data: allResults }

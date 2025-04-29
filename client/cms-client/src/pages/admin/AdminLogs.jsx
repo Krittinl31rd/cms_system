@@ -8,7 +8,89 @@ const columns=[
     { name: "Room", selector: row => row.room_name, sortable: true },
     { name: "Device", selector: row => row.device_name, sortable: true },
     { name: "Attribute", selector: row => row.attribute_name, sortable: true },
-    { name: "Value", selector: row => row.value, sortable: true },
+    {
+        name: "Value",
+        selector: row => row.value,
+        sortable: true,
+        cell: row => {
+            if (row.device_type==888) { //sensor
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return `${(row.value/10).toFixed(1)} °C`;
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return `${(row.value/10).toFixed(1)} %`;
+                }
+            } else if (row.device_type==0) { //roomservice
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return row.value==0? "Check Out":"Check In";
+                } else if (row.attr_id==2&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==3&&!isNaN(row.value)) {
+                    return row.value==1? "Occupied Dirty":row.value==2? "Occupied Clean":row.value==3? "Unoccupied Clean":row.value==4? "Unoccupied Dirty":"Not active";
+                } else if (row.attr_id==4&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==5&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==6&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==7&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==8&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==9&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                } else if (row.attr_id==10&&!isNaN(row.value)) {
+                    return `ESM${row.value}`;
+                } else if (row.attr_id==11&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                }
+            } else if (row.device_type==1) { //air
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return row.value==0? "Offline":"Online";
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return row.value==1? "Low":row.value==2? "Medium":row.value==3? "High":row.value==0? "Off":row.value;
+                } else if (row.attr_id==2&&!isNaN(row.value)) {
+                    return `${row.value} °C`
+                } else if (row.attr_id==3&&!isNaN(row.value)) {
+                    return `${row.value} °C`
+                }
+            } else if (row.device_type==3) { //dim
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return row.value==0? "Offline":"Online";
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return row.value==0? "Off":`${row.value} %`;
+                }
+            } else if (row.device_type==4) { //light
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return row.value==0? "Offline":"Online";
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return row.value==0? "Off":"On";
+                }
+            } else if (row.device_type==7) { //power cons
+                if (row.attr_id==0&&!isNaN(row.value)) {
+                    return (row.value/10).toFixed(2)
+                } else if (row.attr_id==1&&!isNaN(row.value)) {
+                    return (row.value/1000).toFixed(2)
+                } else if (row.attr_id==2&&!isNaN(row.value)) {
+                    return (row.value/10).toFixed(2)
+                } else if (row.attr_id==3&&!isNaN(row.value)) {
+                    return (row.value/100).toFixed(2)
+                } else if (row.attr_id==4&&!isNaN(row.value)) {
+                    return (row.value/100).toFixed(2)
+                } else if (row.attr_id==5&&!isNaN(row.value)) {
+                    return (row.value/10).toFixed(2)
+                }
+            } else if (row.device_type==999) { //config
+                if ([6, 7, 15, 18, 25, 26, 27, 29, 30].includes(row.attr_id)) {
+                    const minutes=Math.floor(row.value/60);
+                    const seconds=row.value%60;
+                    return `${minutes}m ${seconds}s`;
+                }
+            }
+            return row.value;
+        }
+    },
     { name: "Timestamp", selector: row => row.timestamp, sortable: true },
 ];
 
