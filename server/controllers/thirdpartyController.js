@@ -1,6 +1,5 @@
 const sequelize=require('../config/db')
-const { getPollIntervals }=require('../utilities/pollInterval.js');
-
+const { wsClients }=require('../websocketServer')
 
 exports.GetStatus=async (req, res) => {
     try {
@@ -124,27 +123,33 @@ exports.ControlLight=async (req, res) => {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
 
-        const modbusClient=getPollIntervals().find(server => server.ip==result[0].ip_address)?.client;
-        if (!modbusClient) {
-            return res.status(404).json({ success: false, message: 'Modbus client not found' });
+        const wsModbusClient=wsClients.find(client => client.member.role=='modbusClient');
+        if (wsModbusClient==undefined) {
+            return res.status(500).json({ success: false, message: 'Modbus client not connected' });
         }
-        modbusClient.setID(1);
-        // await modbusClient.writeRegister(result[0].holding_address, value);
-        // res.status(200).json({ success: true });
+        const param={
+            address: result[0].holding_address,
+            value: value,
+            slaveId: 1,
+            ip: result[0].ip_address
+        }
 
-        const withTimeout=(promise, ms=5000) =>
+        const withTimeout=(promise, ms=8000) =>
             Promise.race([
                 promise,
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
             ]);
 
         try {
-            await withTimeout(modbusClient.writeRegister(result[0].holding_address, value), 5000);
+            await withTimeout(wsModbusClient.socket.send(JSON.stringify({
+                cmd: 'write_register',
+                param
+            })), 8000);
         } catch (err) {
             console.error('Modbus write error:', err);
             return res.status(500).json({ success: false, message: 'Failed to write to device' });
         }
-        
+
 
         res.status(200).json({ success: true });
 

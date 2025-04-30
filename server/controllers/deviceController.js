@@ -1,6 +1,6 @@
 const sequelize=require('../config/db')
 const { wsClients }=require('../websocketServer')
-const { getPollIntervals }=require('../utilities/pollInterval.js');
+// const { getPollIntervals }=require('../utilities/pollInterval.js');
 
 exports.GetAllDevices=async (req, res) => {
     try {
@@ -136,13 +136,13 @@ exports.SendRoomStatus=async (req, res) => {
                 return res.status(404).json({ success: false, message: 'Room not found' });
             }
 
-            const modbusClient=getPollIntervals().find(server => server.ip===room.ip_address)?.client;
-            if (!modbusClient) {
-                return res.status(404).json({ success: false, message: 'Modbus client not found' });
-            }
+            // const modbusClient=getPollIntervals().find(server => server.ip===room.ip_address)?.client;
+            // if (!modbusClient) {
+            //     return res.status(404).json({ success: false, message: 'Modbus client not found' });
+            // }
 
-            modbusClient.setID(1);
-            await modbusClient.writeRegister(20, value===0? 0:1);
+            // modbusClient.setID(1);
+            // await modbusClient.writeRegister(20, value===0? 0:1);
         }
 
         res.status(200).json({

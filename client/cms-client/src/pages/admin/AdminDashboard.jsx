@@ -136,38 +136,6 @@ const AdminDashboard=() => {
                   return {
                     ...device,
                     attributes: device.attributes.map((attr) => {
-                      // 5MUR, 6DND
-                      // if (attr.holding_address==5) {
-                      //   const value5=param.data.find((p) => p.address==5)?.value
-                      //     ??device.attributes.find((a) => a.holding_address==5)?.value
-                      //     ??0;
-
-                      //   const value6=param.data.find((p) => p.address==6)?.value
-                      //     ??device.attributes.find((a) => a.holding_address==6)?.value
-                      //     ??0;
-
-                      //   let finalValue=0;
-
-                      //   if (value6===1) {
-                      //     finalValue=2;
-                      //   } else if (value5===1&&value6===0) {
-                      //     finalValue=1;
-                      //   }
-
-
-                      //   return {
-                      //     ...attr,
-                      //     value: finalValue,
-                      //   };
-                      // } else {
-                      //   const newItem=param.data.find((p) => p.address==attr.holding_address);
-                      //   if (newItem) {
-                      //     return {
-                      //       ...attr,
-                      //       value: newItem.value,
-                      //     };
-                      //   }
-                      // }
                       const newItem=param.data.find((p) => p.address==attr.holding_address);
                       if (newItem) {
                         return {
@@ -184,7 +152,6 @@ const AdminDashboard=() => {
             }
             return room;
           });
-          // console.log(updatedData);
           return updatedData;
 
 
@@ -207,7 +174,6 @@ const AdminDashboard=() => {
         break;
       case ('room-status-update'):
         console.log('Room Status Updated:', param.data);
-        // setStatusRealtime(param.data);
         setRooms((prevData) => {
           const updatedData=prevData.map((room) => {
             if (room.room_id==param.data.room_id) {
@@ -237,7 +203,6 @@ const AdminDashboard=() => {
         break;
 
       case 'isOnline':
-        // console.log(param)
         setRooms(prevRooms =>
           prevRooms.map(room =>
             room.ip_address==param.ip_address
