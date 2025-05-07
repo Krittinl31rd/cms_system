@@ -3,7 +3,9 @@ const WebSocket=require('ws');
 const { v4: uuidv4 }=require('uuid');
 const wss=new WebSocket.Server({ port: process.env.WS_PORT });
 const wsClients=[];
-const { updatedToDB }=require('./poller/db');
+const { updatedToDB, insertToDB }=require('./poller/db');
+const { GatewayLogin }=require('./controllers/memberController');
+
 
 wss.on('connection', (ws) => {
     console.log('Client connected');
@@ -22,11 +24,9 @@ wss.on('connection', (ws) => {
         // console.log(JSON.parse(message));
         try {
             const { cmd, param }=JSON.parse(message);
-            // console.log(JSON.parse(message));
-            // infoClient.lastTimestamp=Date.now();
 
-            if (cmd=='login') {
-                const { token, isModbusClient }=param;
+            if (cmd=='login_gateway') {
+                const { username, password }=param;
 
                 if (infoClient.isLogin) {
                     return ws.send(JSON.stringify({
@@ -35,17 +35,37 @@ wss.on('connection', (ws) => {
                     }));
                 }
 
-                if (isModbusClient) {
+                try {
+                    const { token }=await GatewayLogin(username, password);
+                    const decoded=await jwt.verify(token, process.env.JWT_SECRET)
                     infoClient.isLogin=true;
-                    infoClient.member={ role: 'modbusClient' };
+                    infoClient.member=decoded;
                     console.log(`Client ${infoClient.id} login success`);
                     ws.send(JSON.stringify({
                         cmd: 'login',
-                        param: { status: 'success', }
+                        param: { status: 'success', message: 'Login successful', clientId: infoClient.id }
                     }));
                     return;
+                } catch (err) {
+                    ws.send(JSON.stringify({
+                        cmd: 'login_gateway',
+                        param: {
+                            status: 'error',
+                            message: err.message
+                        }
+                    }));
                 }
+            }
 
+            if (cmd=='login') {
+                const { token }=param;
+
+                if (infoClient.isLogin) {
+                    return ws.send(JSON.stringify({
+                        cmd: 'login',
+                        param: { status: 'success', message: 'Already logged in' }
+                    }));
+                }
                 try {
                     const decoded=await jwt.verify(token, process.env.JWT_SECRET)
                     infoClient.isLogin=true;
@@ -55,7 +75,18 @@ wss.on('connection', (ws) => {
                         cmd: 'login',
                         param: { status: 'success', message: 'Login successful', clientId: infoClient.id }
                     }));
+                    setTimeout(() => {
+                        const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
+                        if (wsModbusClient!=undefined) {
+                            wsModbusClient.socket.send(JSON.stringify({
+                                cmd: 'modbus_status',
+                                param: {}
+                            }));
+                        }
+                    }, 500);
+                    return;
                 } catch (err) {
+                    console.log(`Client ${infoClient.id} login failed: ${err.message}`);
                     return ws.send(JSON.stringify({
                         cmd: 'login',
                         param: { status: 'error', message: 'Invalid token' }
@@ -70,10 +101,24 @@ wss.on('connection', (ws) => {
                 }));
             }
 
-            if (cmd=='data_update') {
+            if (cmd=='modbus_status') {
+                console.log(`Modbus Status from ${param.ip}: ${param.status}`);
+                broadcastToLoggedInClients(JSON.stringify({
+                    cmd: 'modbus_status',
+                    param
+                }));
+                return;
+            }
+
+            if(cmd=='data_init') {
                 const { ip, data: changedData }=param;
-                console.log(`Data from ${ip}:`, changedData);
-                // await updatedToDB(ip, changedData);
+                updatedToDB(ip, changedData);
+            }
+
+            if (cmd=='data_update') {
+                const { ip, data: changedData, source }=param;
+                console.log(`Data from ${ip} by ${source}:`, changedData);
+                insertToDB(ip, changedData, source);
                 broadcastToLoggedInClients(JSON.stringify({
                     cmd: 'forward_update',
                     param: { ip, data: changedData }
@@ -81,36 +126,8 @@ wss.on('connection', (ws) => {
                 return;
             }
 
-
-            // if (cmd=='getdata') {
-            //     try {
-            //         const { ip }=param;
-            //         infoClient.ip=ip;
-            //         const modbusClient=getPollIntervals().find(server => server.ip===infoClient.ip)?.client;
-            //         if (modbusClient) {
-            //             const allData=await ReadAllRegisters(modbusClient, MODBUS_TOTAL_REGISTERS, MODBUS_CHUNK_SIZE, infoClient.ip);
-
-            //             ws.send(JSON.stringify({
-            //                 cmd: 'getdata',
-            //                 param: { status: 'success', data: allData }
-            //             }));
-            //         } else {
-            //             ws.send(JSON.stringify({
-            //                 cmd: 'getdata',
-            //                 param: { status: 'error', message: `Modbus client not found for IP: ${infoClient.ip}` }
-            //             }));
-            //         }
-            //     } catch (error) {
-            //         ws.send(JSON.stringify({
-            //             cmd: 'getdata',
-            //             param: { status: 'error', message: error.message }
-            //         }));
-            //     }
-            //     return;
-            // }
-
             if (cmd=='write_register') {
-                const wsModbusClient=wsClients.find(client => client.member.role=='modbusClient');
+                const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
                 if (wsModbusClient==undefined) {
                     return ws.send(JSON.stringify({
                         cmd: 'write_register',
@@ -119,11 +136,39 @@ wss.on('connection', (ws) => {
                 }
                 wsModbusClient.socket.send(JSON.stringify({
                     cmd: 'write_register',
-                    param
+                    param: {
+                        ip: param.ip, address: param.address, value: param.value, slaveId: param.slaveId, fc: param.fc, memberId: infoClient.member.id
+                    }
                 }));
                 console.log(`Send Write to ModbusClient: `, param);
                 return;
             }
+
+            if (cmd=='test_write_register') {
+                const wsModbusClient=wsClients.find(client => client.member.role==='gateway');
+                if (!wsModbusClient) {
+                    return ws.send(JSON.stringify({
+                        cmd: 'test_write_register',
+                        param: { status: 'error', message: 'Modbus client not connected' }
+                    }));
+                }
+                (async () => {
+                    for (let i=0; i<param.count; i++) {
+                        const value=i%2;
+                        const newParam={ ip: param.ip, value: value, slaveId: param.slaveId, address: param.address };
+                        wsModbusClient.socket.send(JSON.stringify({
+                            cmd: 'write_register',
+                            param: newParam
+                        }));
+
+                        console.log(`Send Write to ModbusClient: `, param);
+                        await delay(1000);
+                    }
+                })();
+                return;
+            }
+
+
 
 
         } catch (err) {
@@ -146,10 +191,14 @@ wss.on('connection', (ws) => {
 
 function broadcastToLoggedInClients(message) {
     wsClients.forEach(client => {
-        if (client.isLogin&&client.member.role!='modbusClient'&&client.socket.readyState===WebSocket.OPEN) {
+        if (client.isLogin&&client.member.role!='gateway'&&client.socket.readyState===WebSocket.OPEN) {
             client.socket.send(message);
         }
     });
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 module.exports={ wss, wsClients };

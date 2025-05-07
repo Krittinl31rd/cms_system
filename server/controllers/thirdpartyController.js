@@ -123,7 +123,7 @@ exports.ControlLight=async (req, res) => {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
 
-        const wsModbusClient=wsClients.find(client => client.member.role=='modbusClient');
+        const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
         if (wsModbusClient==undefined) {
             return res.status(500).json({ success: false, message: 'Modbus client not connected' });
         }
@@ -131,10 +131,13 @@ exports.ControlLight=async (req, res) => {
             address: result[0].holding_address,
             value: value,
             slaveId: 1,
-            ip: result[0].ip_address
+            ip: result[0].ip_address,
+            memberId: req.member.id||0,
+            fc: 6
         }
 
-        const withTimeout=(promise, ms=8000) =>
+
+        const withTimeout=(promise, ms=500) =>
             Promise.race([
                 promise,
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
@@ -144,7 +147,7 @@ exports.ControlLight=async (req, res) => {
             await withTimeout(wsModbusClient.socket.send(JSON.stringify({
                 cmd: 'write_register',
                 param
-            })), 8000);
+            })), 500);
         } catch (err) {
             console.error('Modbus write error:', err);
             return res.status(500).json({ success: false, message: 'Failed to write to device' });
@@ -180,12 +183,35 @@ exports.ControlDimmer=async (req, res) => {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
 
-        const modbusClient=getPollIntervals().find(server => server.ip==result[0].ip_address)?.client;
-        if (!modbusClient) {
-            return res.status(404).json({ success: false, message: 'Modbus client not found' });
+        const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
+        if (wsModbusClient==undefined) {
+            return res.status(500).json({ success: false, message: 'Modbus client not connected' });
         }
-        modbusClient.setID(1);
-        await modbusClient.writeRegister(result[0].holding_address, value);
+        const param={
+            address: result[0].holding_address,
+            value: value,
+            slaveId: 1,
+            ip: result[0].ip_address,
+            memberId: req.member.id||0,
+            fc: 6
+        }
+
+        const withTimeout=(promise, ms=500) =>
+            Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
+
+        try {
+            await withTimeout(wsModbusClient.socket.send(JSON.stringify({
+                cmd: 'write_register',
+                param
+            })), 500);
+        } catch (err) {
+            console.error('Modbus write error:', err);
+            return res.status(500).json({ success: false, message: 'Failed to write to device' });
+        }
+
         res.status(200).json({ success: true });
 
     } catch (err) {
@@ -217,16 +243,37 @@ exports.ControlAircon=async (req, res) => {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
 
+        const withTimeout=(promise, ms=500) =>
+            Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
+
+        const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
+        if (wsModbusClient==undefined) {
+            return res.status(500).json({ success: false, message: 'Modbus client not connected' });
+        }
+
         for (const item of result) {
-            const modbusClient=getPollIntervals().find(server => server.ip===item.ip_address)?.client;
-            if (!modbusClient) {
-                return res.status(404).json({ success: false, message: 'Modbus client not found' });
+            const value=item.attr_id===1? fan:temp;
+            const param={
+                ip: item.ip_address,
+                slaveId: 1,
+                address: item.holding_address,
+                value,
+                memberId: req.member.id||0,
+                fc: 6
+            };
+
+            try {
+                await withTimeout(wsModbusClient.socket.send(JSON.stringify({
+                    cmd: 'write_register',
+                    param
+                })), 500);
+            } catch (err) {
+                console.error(`Modbus write error for address ${item.holding_address}:`, err);
+                return res.status(500).json({ success: false, message: 'Failed to write to device' });
             }
-
-            modbusClient.setID(1);
-
-            const value=item.attr_id==1? fan:temp;
-            await modbusClient.writeRegister(item.holding_address, value);
         }
 
         return res.status(200).json({ success: true });
@@ -337,16 +384,40 @@ exports.UpdateConfig=async (req, res) => {
             return res.status(404).json({ success: false, message: 'No attributes found' });
         }
 
+        const withTimeout=(promise, ms=500) =>
+            Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
+
+        const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
+        if (wsModbusClient==undefined) {
+            return res.status(500).json({ success: false, message: 'Modbus client not connected' });
+        }
+
         for (const item of result.flat()) {
-            const modbusClient=getPollIntervals().find(server => server.ip==item.ip_address)?.client;
-            if (!modbusClient) {
-                return res.status(404).json({ success: false, message: 'Modbus client not found' });
+            const param={
+                ip: item.ip_address,
+                slaveId: 1,
+                address: item.holding_address,
+                value: item.value,
+                memberId: req.member.id||0,
+                fc: 6
+            };
+
+            try {
+                await withTimeout(wsModbusClient.socket.send(JSON.stringify({
+                    cmd: 'write_register',
+                    param
+                })), 500);
+            } catch (err) {
+                console.error(`Modbus write error for address ${item.holding_address}:`, err);
+                return res.status(500).json({ success: false, message: 'Failed to write to device' });
             }
-            modbusClient.setID(1);
-            await modbusClient.writeRegister(item.holding_address, item.value);
         }
 
         return res.status(200).json({ success: true });
+        
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: 'Internal server error' });

@@ -2,17 +2,18 @@ import { sendStatusRoom } from "../api/Devices"
 import useCmsStore from "../store/cmsstore";
 
 const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
-    console.log(item)
+    // console.log(item)
     const { token, member }=useCmsStore((state) => state);
 
-    const handleAction=async (device_id, attr_id, address, value) => {
+    const handleAction=async (device_id, attr_id, address, value, fc) => {
         sendWebSocketMessage({
-            cmd: 'modbus_write',
+            cmd: 'write_register',
             param: {
                 address,
                 value: value,
                 slaveId: 1,
-                ip: item.ip_address
+                ip: item.ip_address,
+                fc: fc
             }
         })
 
@@ -268,7 +269,8 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                                                 item.device_id,
                                                                 attr.attr_id,
                                                                 attr.holding_address,
-                                                                1
+                                                                1,
+                                                                6
                                                             )
                                                         }
                                                         className={`${attr.value==1? 'opacity-70 cursor-not-allowed':'cursor-pointer'}
@@ -283,7 +285,8 @@ const CardRoom=({ item, onClick, sendWebSocketMessage }) => {
                                                                 item.device_id,
                                                                 attr.attr_id,
                                                                 attr.holding_address,
-                                                                0
+                                                                0,
+                                                                6
                                                             )
                                                         }
                                                         className={`${attr.value==0? 'opacity-70 cursor-not-allowed':'cursor-pointer'}

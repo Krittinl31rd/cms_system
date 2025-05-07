@@ -57,7 +57,7 @@ exports.GetAllDevices=async (req, res) => {
             message: 'Get all devices successfully',
             data: roomList
         })
-        
+
 
     } catch (err) {
         console.log(err)
@@ -136,13 +136,35 @@ exports.SendRoomStatus=async (req, res) => {
                 return res.status(404).json({ success: false, message: 'Room not found' });
             }
 
-            // const modbusClient=getPollIntervals().find(server => server.ip===room.ip_address)?.client;
-            // if (!modbusClient) {
-            //     return res.status(404).json({ success: false, message: 'Modbus client not found' });
-            // }
+            const wsModbusClient=wsClients.find(client => client.member.role=='gateway');
+            if (wsModbusClient==undefined) {
+                return res.status(500).json({ success: false, message: 'Modbus client not connected' });
+            }
 
-            // modbusClient.setID(1);
-            // await modbusClient.writeRegister(20, value===0? 0:1);
+            const param={
+                address: 20,
+                value: value==0? 0:1,
+                slaveId: 1,
+                ip: room.ip_address,
+                memberId: req.member.id||0
+            }
+
+            const withTimeout=(promise, ms=500) =>
+                Promise.race([
+                    promise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+                ]);
+
+            try {
+                await withTimeout(wsModbusClient.socket.send(JSON.stringify({
+                    cmd: 'write_register',
+                    param
+                })), 500);
+            } catch (err) {
+                console.error('Modbus write error:', err);
+                return res.status(500).json({ success: false, message: 'Failed to write to device' });
+            }
+
         }
 
         res.status(200).json({
@@ -173,9 +195,12 @@ exports.GetDeviceControlLog=async (req, res) => {
             d.device_type,
 
             a.attr_id AS attr_id,
-            a.name AS attribute_name
+            a.name AS attribute_name,
+
+            m.username AS username
 
         FROM device_control_log dcl
+        LEFT JOIN members m ON dcl.member_id = m.id
         JOIN rooms r ON dcl.room_id = r.room_id
         JOIN devices d ON dcl.room_id = d.room_id AND dcl.device_id = d.device_id
         JOIN attributes a ON dcl.room_id = a.room_id 

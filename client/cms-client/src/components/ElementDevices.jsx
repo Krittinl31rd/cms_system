@@ -41,12 +41,13 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
             const value=parseInt(rawValue);
             if (isNaN(value)) continue;
             const payload={
-                cmd: 'modbus_write',
+                cmd: 'write_register',
                 param: {
                     address: holding_address,
                     value,
                     slaveId: 1,
-                    ip: ip_address
+                    ip: ip_address,
+                    fc: 6
                 }
             };
             sendWebSocketMessage(payload);
@@ -54,12 +55,13 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
         }
 
         sendWebSocketMessage({
-            cmd: 'modbus_write',
+            cmd: 'write_register',
             param: {
                 address: 49,
                 value: 1,
                 slaveId: 1,
-                ip: ip_address
+                ip: ip_address,
+                fc: 6
             }
         });
 
@@ -70,14 +72,15 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
 
 
 
-    const handleAction=async (address, value) => {
+    const handleAction=async (address, value, fc) => {
         sendWebSocketMessage({
-            cmd: 'modbus_write',
+            cmd: 'write_register',
             param: {
                 address,
                 value: value,
                 slaveId: 1,
-                ip: ip_address
+                ip: ip_address,
+                fc: fc
             }
         })
     }
@@ -110,12 +113,13 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                     className="cursor-pointer inline-flex items-center justify-center py-1 px-2 rounded-full font-semibold bg-yellow-300"
                     onClick={() => {
                         sendWebSocketMessage({
-                            cmd: 'modbus_write',
+                            cmd: 'write_register',
                             param: {
                                 address: 4,
                                 value: 1,
                                 slaveId: 1,
-                                ip: ip_address
+                                ip: ip_address,
+                                fc: 6
                             }
                         });
                     }}
@@ -124,12 +128,13 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                     className="cursor-pointer inline-flex items-center justify-center py-1 px-2 rounded-full font-semibold bg-red-400"
                     onClick={() => {
                         sendWebSocketMessage({
-                            cmd: 'modbus_write',
+                            cmd: 'write_register',
                             param: {
                                 address: 4,
                                 value: 0,
                                 slaveId: 1,
-                                ip: ip_address
+                                ip: ip_address,
+                                fc: 6
                             }
                         });
                     }}
@@ -148,7 +153,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                                 <div className='h-full flex-1 flex items-start justify-end gap-2 font-semibold text-xs'>
                                                     {attr.value==0? (<span>OFF</span>):(<span>ON</span>)}
                                                     <button
-                                                        onClick={() => handleAction(attr.holding_address, attr.value==0? 1:0)}
+                                                        onClick={() => handleAction(attr.holding_address, attr.value==0? 1:0, 6)}
                                                         className='cursor-pointer w-8 h-4 rounded-full bg-gray-300 inline-flex relative'>
                                                         {attr.value==0? (
                                                             <span className='w-4 h-4 bg-gray-500 rounded-full absolute top-0 left-0'></span>
@@ -200,7 +205,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                                         max="100"
                                                         value={sliderValues[item.device_id]??attr.value}
                                                         onChange={(e) => handleChangeSlider(item.device_id, e)}
-                                                        onMouseUp={(e) => handleAction(attr.holding_address, e.target.value)}
+                                                        onMouseUp={(e) => handleAction(attr.holding_address, e.target.value, 6)}
                                                         className="
                                     w-full h-4 rounded-lg appearance-none bg-gray-300
                                     focus:outline-none
@@ -247,28 +252,28 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                 </div>
                                 <div className='w-full flex items-center justify-center gap-2 text-xs'>
                                     <button
-                                        onClick={() => handleAction(FanSpeed.holding_address, 0)}
+                                        onClick={() => handleAction(FanSpeed.holding_address, 0, 6)}
                                         className={FanSpeed.value==0? "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-green-400":
                                             "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-gray-200"
                                         }>
                                         OFF
                                     </button>
                                     <button
-                                        onClick={() => handleAction(FanSpeed.holding_address, 1)}
+                                        onClick={() => handleAction(FanSpeed.holding_address, 1, 6)}
                                         className={FanSpeed.value==1? "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-green-400":
                                             "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-gray-200"
                                         }>
                                         LOW
                                     </button>
                                     <button
-                                        onClick={() => handleAction(FanSpeed.holding_address, 2)}
+                                        onClick={() => handleAction(FanSpeed.holding_address, 2, 6)}
                                         className={FanSpeed.value==2? "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-green-400":
                                             "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-gray-200"
                                         }>
                                         MED
                                     </button>
                                     <button
-                                        onClick={() => handleAction(FanSpeed.holding_address, 3)}
+                                        onClick={() => handleAction(FanSpeed.holding_address, 3, 6)}
                                         className={FanSpeed.value==3? "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-green-400":
                                             "cursor-pointer inline-flex items-center justify-center w-12 py-1 rounded-full font-semibold bg-gray-200"
                                         }>
@@ -287,7 +292,7 @@ const ElementDevices=({ ip_address, device_list, sendWebSocketMessage }) => {
                                             max="36"
                                             value={sliderValues[item.device_id]??Temp.value}
                                             onChange={(e) => handleChangeSlider(item.device_id, e)}
-                                            onMouseUp={(e) => handleAction(Temp.holding_address, e.target.value)}
+                                            onMouseUp={(e) => handleAction(Temp.holding_address, e.target.value, 6)}
                                             className="
                                                         w-full h-4 rounded-lg appearance-none bg-gray-300
                                                         focus:outline-none

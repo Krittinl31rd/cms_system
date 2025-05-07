@@ -85,3 +85,43 @@ exports.CurrentMember=async (req, res) => {
         res.status(500).json({ message: 'Internal server error' })
     }
 }
+
+
+
+exports.GatewayLogin=async (username, password) => {
+    try {
+        const querySearch=`
+            SELECT * FROM members WHERE username=:username
+        `;
+        const results=await sequelize.query(querySearch, {
+            replacements: { username },
+            type: sequelize.QueryTypes.SELECT
+        });
+        if (results.length==0) {
+            throw new Error("Invalid username or password");
+        }
+
+        const isMatch=await bcrypt.compare(password, results[0].password_hash);
+        if (!isMatch) {
+            throw new Error("Invalid username or password");
+        }
+
+        const payload={
+            id: results[0].id,
+            username: results[0].username,
+            email: results[0].email,
+            role: results[0].role
+        };
+
+        const token=await new Promise((resolve, reject) => {
+            jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1y' }, (err, token) => {
+                if (err) reject(new Error("Internal server error"));
+                else resolve(token);
+            });
+        });
+        return { token };
+    } catch (err) {
+        console.log(err);
+        throw err;
+    }
+};

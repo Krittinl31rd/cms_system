@@ -32,13 +32,13 @@ const LabelSensor=({ device_list }) => {
                                     <div key={attr.attr_id} className="flex items-center text-center gap-0 py-0 px-0">
                                         {attr.value==0?
                                             (<>
-                                                <DoorClosed className='text-red-400' size={32} />
-                                                <span className='font-bold '>Closed</span>
+                                                <DoorOpen className='text-yellow-400' size={32} />
+                                                <span className='font-bold '>Open</span>
                                             </>
                                             )
                                             :(<>
-                                                <DoorOpen className='text-yellow-400' size={32} />
-                                                <span className='font-bold '>Open</span>
+                                                <DoorClosed className='text-red-400' size={32} />
+                                                <span className='font-bold '>Closed</span>
                                             </>
                                             )}
 

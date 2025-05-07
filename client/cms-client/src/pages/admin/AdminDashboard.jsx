@@ -17,7 +17,7 @@ const AdminDashboard=() => {
     ws.current=new WebSocket(import.meta.env.VITE_WS_URL);
 
     ws.current.onopen=() => {
-      console.log('WebSocket Connected');
+      // console.log('WebSocket Connected');
       setIsWsReady(true);
     };
 
@@ -31,7 +31,7 @@ const AdminDashboard=() => {
     };
 
     ws.current.onclose=() => {
-      console.log('WebSocket Disconnected');
+      // console.log('WebSocket Disconnected');
       setIsWsReady(false);
     };
 
@@ -63,15 +63,9 @@ const AdminDashboard=() => {
     if (ws.current&&ws.current.readyState===WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket not open, retrying...');
+      // console.warn('WebSocket not open, retrying...');
       setTimeout(() => sendWebSocketMessage(message), 500);
     }
-  };
-
-  // console.log(rooms)
-
-  const isTrustedIp=(ip) => {
-    return rooms.some((room) => room.ip_address==ip);
   };
 
 
@@ -80,63 +74,74 @@ const AdminDashboard=() => {
     switch (cmd) {
       case 'login':
         if (param.status=='success') {
-          console.log('Login success');
+          // console.log('Login success');
         }
-        break
-      case 'getalldata':
-        // console.log(param)
-        if (param.status=='success') {
-          setRooms((prevData) => {
-            const updatedData=prevData.map((room) => {
-              const matchingData=param.data.find((newItem) => newItem.ip===room.ip_address);
-              if (matchingData) {
-                return {
-                  ...room,
-                  device_list: room.device_list.map((device) => {
-                    return {
-                      ...device,
-                      attributes: device.attributes.map((attr) => {
-                        // if (matchingData.data[5]==0&&matchingData.data[6]==0) {
-                        //   matchingData.data[5]=0
-                        // } else if (matchingData.data[6]==1) {
-                        //   matchingData.data[5]=2
-                        // }
-                        const serverValue=matchingData.data[attr.holding_address];
-                        if (serverValue!==undefined) {
-                          return {
-                            ...attr,
-                            value: serverValue,
-                          };
-                        }
-                        return attr;
-                      }),
-                    };
-                  }),
-                };
-              }
-              return room;
-            });
+        break;
 
-            // console.log(updatedData);
-            return updatedData;
-          });
+      // case 'forward_update': {
+      //   console.log('Received forward_update:', param);
+      //   setRooms((prevData) => {
+      //     const updatedData=prevData.map((room) => {
+      //       if (room.ip_address==param.ip) {
+      //         const updatedRoom={
+      //           ...room,
+      //           device_list: room.device_list.map((device) => {
+      //             return {
+      //               ...device,
+      //               attributes: device.attributes.map((attr) => {
+      //                 const newItem=param.data.find((p) => p.address==attr.holding_address);
+      //                 if (newItem) {
+      //                   return {
+      //                     ...attr,
+      //                     value: newItem.value,
+      //                   };
+      //                 }
+      //                 return attr;
+      //               }),
+      //             };
+      //           }),
+      //         };
+      //         return updatedRoom;
+      //       }
+      //       return room;
+      //     });
+      //     return updatedData;
+      //   });
+      //     const isSave=param.data.find((item) => item.address==49);
+      //     if (isSave!=undefined) {
+      //       if (isSave.value==2) {
+      //         toast.success(`Save config for ${param.ip} Scuccessfully :)`)
+      //       } else if (isSave.value==3) {
+      //         toast.error(`Save config for ${param.ip} Failed :(`)
+      //       } else {
+      //         return
+      //       }
+      //     }
+      // }
+      //   break;
 
-        } else {
-          console.log('Failed to get all data');
-        }
-        break
-      case 'data_update': {
-        console.log('Received data_update:', param);
+      case 'forward_update': {
+        // console.log('Received forward_update:', param);
+
         setRooms((prevData) => {
           const updatedData=prevData.map((room) => {
-            if (room.ip_address==param.ip) {
+            if (room.ip_address===param.ip) {
               const updatedRoom={
                 ...room,
                 device_list: room.device_list.map((device) => {
                   return {
                     ...device,
                     attributes: device.attributes.map((attr) => {
-                      const newItem=param.data.find((p) => p.address==attr.holding_address);
+                      const newItem=param.data.find((p) => {
+                        if (p.fc==3&&p.address==attr.holding_address&&attr.holding_address!=-1) {
+                          return true;
+                        }
+                        if (p.fc==1&&p.address==attr.coil_address&&attr.coil_address!=-1) {
+                          return true;
+                        }
+                        return false;
+                      });
+
                       if (newItem) {
                         return {
                           ...attr,
@@ -153,27 +158,24 @@ const AdminDashboard=() => {
             return room;
           });
           return updatedData;
-
-
         });
 
-          const isSave=param.data.find((item) => item.address==49);
-          if (isSave!=undefined) {
-            if (isSave.value==2) {
-              toast.success(`Save config for ${param.ip} Scuccessfully :)`)
-            } else if (isSave.value==3) {
-              toast.error(`Save config for ${param.ip} Failed :(`)
-            } else {
-              return
-            }
+        const isSave=param.data.find((item) => item.address===49);
+        if (isSave!==undefined) {
+          if (isSave.value===2) {
+            toast.success(`Save config for ${param.ip} Successfully :)`);
+          } else if (isSave.value===3) {
+            toast.error(`Save config for ${param.ip} Failed :(`);
+          } else {
+            return;
           }
-
-
-
+        }
       }
         break;
+
+
       case ('room-status-update'):
-        console.log('Room Status Updated:', param.data);
+        // console.log('Room Status Updated:', param.data);
         setRooms((prevData) => {
           const updatedData=prevData.map((room) => {
             if (room.room_id==param.data.room_id) {
@@ -197,20 +199,29 @@ const AdminDashboard=() => {
             }
             return room;
           });
-          // console.log(updatedData)
           return updatedData;
         });
         break;
 
-      case 'isOnline':
-        setRooms(prevRooms =>
-          prevRooms.map(room =>
-            room.ip_address==param.ip_address
-              ? { ...room, is_online: param.isOnline? 1:0 }
-              :room
-          )
-        );
-
+      case 'modbus_status':
+        if (Array.isArray(param.data)) {
+          setRooms(prevRooms =>
+            prevRooms.map(room => {
+              const match=param.data.find(item => item.ip==room.ip_address);
+              return match
+                ? { ...room, is_online: match.status=='connected'? 1:0 }
+                :room;
+            })
+          );
+        } else if (param.ip) {
+          setRooms(prevRooms =>
+            prevRooms.map(room =>
+              room.ip_address===param.ip
+                ? { ...room, is_online: param.status=='connected'? 1:0 }
+                :room
+            )
+          );
+        }
         break;
 
     }
